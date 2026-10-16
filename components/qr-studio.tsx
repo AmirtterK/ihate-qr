@@ -88,6 +88,68 @@ function createRng(seedStr: string) {
   };
 }
 
+// Bulletproof Canvas rounded rectangle with per-corner radii (works in all browsers without relying on experimental ctx.roundRect)
+function drawRoundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  tl: number,
+  tr: number,
+  br: number,
+  bl: number
+) {
+  const maxR = Math.min(w, h) / 2;
+  const ctl = Math.max(0, Math.min(tl, maxR));
+  const ctr = Math.max(0, Math.min(tr, maxR));
+  const cbr = Math.max(0, Math.min(br, maxR));
+  const cbl = Math.max(0, Math.min(bl, maxR));
+
+  ctx.beginPath();
+  ctx.moveTo(x + ctl, y);
+  ctx.lineTo(x + w - ctr, y);
+  if (ctr > 0) ctx.arcTo(x + w, y, x + w, y + ctr, ctr);
+  ctx.lineTo(x + w, y + h - cbr);
+  if (cbr > 0) ctx.arcTo(x + w, y + h, x + w - cbr, y + h, cbr);
+  ctx.lineTo(x + cbl, y + h);
+  if (cbl > 0) ctx.arcTo(x, y + h, x, y + h - cbl, cbl);
+  ctx.lineTo(x, y + ctl);
+  if (ctl > 0) ctx.arcTo(x, y, x + ctl, y, ctl);
+  ctx.closePath();
+}
+
+// Generate exact SVG path for a rectangle with individual corner radii
+function getSvgRoundedRectPath(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  tl: number,
+  tr: number,
+  br: number,
+  bl: number
+): string {
+  const maxR = Math.min(w, h) / 2;
+  const ctl = Math.max(0, Math.min(tl, maxR));
+  const ctr = Math.max(0, Math.min(tr, maxR));
+  const cbr = Math.max(0, Math.min(br, maxR));
+  const cbl = Math.max(0, Math.min(bl, maxR));
+
+  return (
+    `M ${(x + ctl).toFixed(2)} ${y.toFixed(2)} ` +
+    `L ${(x + w - ctr).toFixed(2)} ${y.toFixed(2)} ` +
+    (ctr > 0 ? `A ${ctr.toFixed(2)} ${ctr.toFixed(2)} 0 0 1 ${(x + w).toFixed(2)} ${(y + ctr).toFixed(2)} ` : "") +
+    `L ${(x + w).toFixed(2)} ${(y + h - cbr).toFixed(2)} ` +
+    (cbr > 0 ? `A ${cbr.toFixed(2)} ${cbr.toFixed(2)} 0 0 1 ${(x + w - cbr).toFixed(2)} ${(y + h).toFixed(2)} ` : "") +
+    `L ${(x + cbl).toFixed(2)} ${(y + h).toFixed(2)} ` +
+    (cbl > 0 ? `A ${cbl.toFixed(2)} ${cbl.toFixed(2)} 0 0 1 ${x.toFixed(2)} ${(y + h - cbl).toFixed(2)} ` : "") +
+    `L ${x.toFixed(2)} ${(y + ctl).toFixed(2)} ` +
+    (ctl > 0 ? `A ${ctl.toFixed(2)} ${ctl.toFixed(2)} 0 0 1 ${(x + ctl).toFixed(2)} ${y.toFixed(2)} ` : "") +
+    "Z"
+  );
+}
+
 // Draw a custom artistic finder eye pattern (7x7 modules) onto Canvas
 function drawFinderEye(
   ctx: CanvasRenderingContext2D,
@@ -130,29 +192,26 @@ function drawFinderEye(
     const rIn = 1.6 * modSize;
     const rPup = 0.9 * modSize;
 
-    let radiiOut = [rOut, 0, rOut, 0];
-    let radiiIn = [rIn, 0, rIn, 0];
-    let radiiPup = [rPup, 0, rPup, 0];
+    let tlO = rOut, trO = 0, brO = rOut, blO = 0;
+    let tlI = rIn, trI = 0, brI = rIn, blI = 0;
+    let tlP = rPup, trP = 0, brP = rPup, blP = 0;
 
     if (corner === "tr" || corner === "bl") {
-      radiiOut = [0, rOut, 0, rOut];
-      radiiIn = [0, rIn, 0, rIn];
-      radiiPup = [0, rPup, 0, rPup];
+      tlO = 0; trO = rOut; brO = 0; blO = rOut;
+      tlI = 0; trI = rIn; brI = 0; blI = rIn;
+      tlP = 0; trP = rPup; brP = 0; blP = rPup;
     }
 
     ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.roundRect(originX, originY, outerSize, outerSize, radiiOut);
+    drawRoundRectPath(ctx, originX, originY, outerSize, outerSize, tlO, trO, brO, blO);
     ctx.fill();
 
     ctx.fillStyle = bgColor;
-    ctx.beginPath();
-    ctx.roundRect(originX + innerOffset, originY + innerOffset, innerSize, innerSize, radiiIn);
+    drawRoundRectPath(ctx, originX + innerOffset, originY + innerOffset, innerSize, innerSize, tlI, trI, brI, blI);
     ctx.fill();
 
     ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.roundRect(originX + pupilOffset, originY + pupilOffset, pupilSize, pupilSize, radiiPup);
+    drawRoundRectPath(ctx, originX + pupilOffset, originY + pupilOffset, pupilSize, pupilSize, tlP, trP, brP, blP);
     ctx.fill();
   } else if (shape === "chamfer") {
     const chOut = 1.7 * modSize;
@@ -205,11 +264,11 @@ function getFinderEyeSvg(
   bgColor: string,
   corner: "tl" | "tr" | "bl"
 ): string {
-  const outerSize = (7 * modSize).toFixed(2);
-  const innerSize = (5 * modSize).toFixed(2);
-  const pupilSize = (3 * modSize).toFixed(2);
-  const innerOffset = modSize.toFixed(2);
-  const pupilOffset = (2 * modSize).toFixed(2);
+  const outerSize = 7 * modSize;
+  const innerSize = 5 * modSize;
+  const pupilSize = 3 * modSize;
+  const innerOffset = modSize;
+  const pupilOffset = 2 * modSize;
 
   const cx = (originX + 3.5 * modSize).toFixed(2);
   const cy = (originY + 3.5 * modSize).toFixed(2);
@@ -224,28 +283,41 @@ function getFinderEyeSvg(
       <circle cx="${cx}" cy="${cy}" r="${rPup}" fill="${color}" />
     `;
   } else if (shape === "leaf") {
-    const rOut = (2.4 * modSize).toFixed(2);
-    const rIn = (1.6 * modSize).toFixed(2);
-    const rPup = (0.9 * modSize).toFixed(2);
-    const rx = (shape === "leaf" ? rOut : "0");
+    const rOut = 2.4 * modSize;
+    const rIn = 1.6 * modSize;
+    const rPup = 0.9 * modSize;
+
+    let tlO = rOut, trO = 0, brO = rOut, blO = 0;
+    let tlI = rIn, trI = 0, brI = rIn, blI = 0;
+    let tlP = rPup, trP = 0, brP = rPup, blP = 0;
+
+    if (corner === "tr" || corner === "bl") {
+      tlO = 0; trO = rOut; brO = 0; blO = rOut;
+      tlI = 0; trI = rIn; brI = 0; blI = rIn;
+      tlP = 0; trP = rPup; brP = 0; blP = rPup;
+    }
+
+    const pOut = getSvgRoundedRectPath(originX, originY, outerSize, outerSize, tlO, trO, brO, blO);
+    const pIn = getSvgRoundedRectPath(originX + innerOffset, originY + innerOffset, innerSize, innerSize, tlI, trI, brI, blI);
+    const pPup = getSvgRoundedRectPath(originX + pupilOffset, originY + pupilOffset, pupilSize, pupilSize, tlP, trP, brP, blP);
+
     return `
-      <rect x="${originX.toFixed(2)}" y="${originY.toFixed(2)}" width="${outerSize}" height="${outerSize}" rx="${rx}" fill="${color}" />
-      <rect x="${(originX + parseFloat(innerOffset)).toFixed(2)}" y="${(originY + parseFloat(innerOffset)).toFixed(2)}" width="${innerSize}" height="${innerSize}" rx="${rIn}" fill="${bgColor}" />
-      <rect x="${(originX + parseFloat(pupilOffset)).toFixed(2)}" y="${(originY + parseFloat(pupilOffset)).toFixed(2)}" width="${pupilSize}" height="${pupilSize}" rx="${rPup}" fill="${color}" />
+      <path d="${pOut}" fill="${color}" />
+      <path d="${pIn}" fill="${bgColor}" />
+      <path d="${pPup}" fill="${color}" />
     `;
   } else if (shape === "chamfer") {
-    const ch = (1.6 * modSize).toFixed(2);
     const ox = originX, oy = originY, sz = 7 * modSize;
     return `
       <polygon points="${(ox + 1.6*modSize).toFixed(2)},${oy.toFixed(2)} ${(ox + sz - 1.6*modSize).toFixed(2)},${oy.toFixed(2)} ${(ox + sz).toFixed(2)},${(oy + 1.6*modSize).toFixed(2)} ${(ox + sz).toFixed(2)},${(oy + sz - 1.6*modSize).toFixed(2)} ${(ox + sz - 1.6*modSize).toFixed(2)},${(oy + sz).toFixed(2)} ${(ox + 1.6*modSize).toFixed(2)},${(oy + sz).toFixed(2)} ${ox.toFixed(2)},${(oy + sz - 1.6*modSize).toFixed(2)} ${ox.toFixed(2)},${(oy + 1.6*modSize).toFixed(2)}" fill="${color}" />
-      <rect x="${(originX + parseFloat(innerOffset)).toFixed(2)}" y="${(originY + parseFloat(innerOffset)).toFixed(2)}" width="${innerSize}" height="${innerSize}" rx="${(modSize*0.5).toFixed(2)}" fill="${bgColor}" />
-      <rect x="${(originX + parseFloat(pupilOffset)).toFixed(2)}" y="${(originY + parseFloat(pupilOffset)).toFixed(2)}" width="${pupilSize}" height="${pupilSize}" rx="${(modSize*0.4).toFixed(2)}" fill="${color}" />
+      <rect x="${(originX + innerOffset).toFixed(2)}" y="${(originY + innerOffset).toFixed(2)}" width="${innerSize.toFixed(2)}" height="${innerSize.toFixed(2)}" rx="${(modSize*0.5).toFixed(2)}" fill="${bgColor}" />
+      <rect x="${(originX + pupilOffset).toFixed(2)}" y="${(originY + pupilOffset).toFixed(2)}" width="${pupilSize.toFixed(2)}" height="${pupilSize.toFixed(2)}" rx="${(modSize*0.4).toFixed(2)}" fill="${color}" />
     `;
   } else {
     return `
-      <rect x="${originX.toFixed(2)}" y="${originY.toFixed(2)}" width="${outerSize}" height="${outerSize}" fill="${color}" />
-      <rect x="${(originX + parseFloat(innerOffset)).toFixed(2)}" y="${(originY + parseFloat(innerOffset)).toFixed(2)}" width="${innerSize}" height="${innerSize}" fill="${bgColor}" />
-      <rect x="${(originX + parseFloat(pupilOffset)).toFixed(2)}" y="${(originY + parseFloat(pupilOffset)).toFixed(2)}" width="${pupilSize}" height="${pupilSize}" fill="${color}" />
+      <rect x="${originX.toFixed(2)}" y="${originY.toFixed(2)}" width="${outerSize.toFixed(2)}" height="${outerSize.toFixed(2)}" fill="${color}" />
+      <rect x="${(originX + innerOffset).toFixed(2)}" y="${(originY + innerOffset).toFixed(2)}" width="${innerSize.toFixed(2)}" height="${innerSize.toFixed(2)}" fill="${bgColor}" />
+      <rect x="${(originX + pupilOffset).toFixed(2)}" y="${(originY + pupilOffset).toFixed(2)}" width="${pupilSize.toFixed(2)}" height="${pupilSize.toFixed(2)}" fill="${color}" />
     `;
   }
 }
@@ -296,21 +368,23 @@ export function QRStudio() {
     return `https://${trimmed}`;
   }, [url]);
 
-  // Find the darkest color in palette for finder patterns
-  const darkestColor = useMemo(() => {
-    if (palette.length === 0) return "#000000";
-    let darkest = palette[0];
-    let minLum = 1.0;
+  // Determine the color with the highest contrast against the background (for finder eyes)
+  const bestContrastColor = useMemo(() => {
+    if (palette.length === 0) return bgColor === "#FFFFFF" ? "#000000" : "#FFFFFF";
+    let best = palette[0];
+    let maxRatio = -1;
     for (const color of palette) {
-      const [r, g, b] = hexToRgb(color);
-      const lum = getLuminance(r, g, b);
-      if (lum < minLum) {
-        minLum = lum;
-        darkest = color;
+      const ratio = getContrastRatio(color, bgColor);
+      if (ratio > maxRatio) {
+        maxRatio = ratio;
+        best = color;
       }
     }
-    return darkest;
-  }, [palette]);
+    return best;
+  }, [palette, bgColor]);
+
+  // Backward-compatibility alias
+  const darkestColor = bestContrastColor;
 
   // Scan-Safety diagnostics
   const safetyReport = useMemo(() => {
@@ -334,8 +408,8 @@ export function QRStudio() {
       }
     });
 
-    // Darkest color contrast check (finders)
-    const finderRatio = getContrastRatio(darkestColor, bgColor);
+    // Best contrast check (finders)
+    const finderRatio = getContrastRatio(bestContrastColor, bgColor);
     if (finderRatio < 4.0) {
       warnings.push({
         type: "contrast",
@@ -357,7 +431,7 @@ export function QRStudio() {
 
     const isSafe = warnings.filter((w) => w.critical).length === 0;
     return { isSafe, warnings };
-  }, [palette, bgColor, darkestColor, logoSrc, logoSizePercent]);
+  }, [palette, bgColor, bestContrastColor, logoSrc, logoSizePercent]);
 
   // Generate QR Matrix
   const qrData: QRCodeData = useMemo(() => {
@@ -409,23 +483,50 @@ export function QRStudio() {
 
       // Precompute gradient fill if requested
       let fillGradient: CanvasGradient | null = null;
+      const seedNum = Math.abs(parseInt(seed, 10) || 48291);
+
       if (colorMode === "gradient") {
-        fillGradient = ctx.createLinearGradient(0, 0, targetSize, targetSize);
-        palette.forEach((c, idx) => {
-          fillGradient!.addColorStop(idx / Math.max(1, palette.length - 1), c);
-        });
+        const angleMode = seedNum % 4;
+        if (angleMode === 0) {
+          fillGradient = ctx.createLinearGradient(0, 0, targetSize, targetSize);
+        } else if (angleMode === 1) {
+          fillGradient = ctx.createLinearGradient(targetSize / 2, 0, targetSize / 2, targetSize);
+        } else if (angleMode === 2) {
+          fillGradient = ctx.createLinearGradient(0, targetSize, targetSize, 0);
+        } else {
+          fillGradient = ctx.createLinearGradient(0, targetSize / 2, targetSize, targetSize / 2);
+        }
+
+        if (palette.length === 1) {
+          fillGradient.addColorStop(0, palette[0]);
+          fillGradient.addColorStop(1, palette[0]);
+        } else {
+          palette.forEach((c, idx) => {
+            fillGradient!.addColorStop(idx / (palette.length - 1), c);
+          });
+        }
       } else if (colorMode === "radial") {
+        const offsetMode = seedNum % 3;
+        const cx = offsetMode === 1 ? targetSize * 0.42 : offsetMode === 2 ? targetSize * 0.58 : targetSize * 0.5;
+        const cy = offsetMode === 1 ? targetSize * 0.42 : offsetMode === 2 ? targetSize * 0.58 : targetSize * 0.5;
+
         fillGradient = ctx.createRadialGradient(
-          targetSize / 2,
-          targetSize / 2,
+          cx,
+          cy,
           targetSize * 0.05,
           targetSize / 2,
           targetSize / 2,
           targetSize * 0.72
         );
-        palette.forEach((c, idx) => {
-          fillGradient!.addColorStop(idx / Math.max(1, palette.length - 1), c);
-        });
+
+        if (palette.length === 1) {
+          fillGradient.addColorStop(0, palette[0]);
+          fillGradient.addColorStop(1, palette[0]);
+        } else {
+          palette.forEach((c, idx) => {
+            fillGradient!.addColorStop(idx / (palette.length - 1), c);
+          });
+        }
       }
 
       // Helper to check if a cell is an active data module (for fluid ribbon connections)
@@ -469,8 +570,7 @@ export function QRStudio() {
             ctx.fillRect(x, y, modulePixelSize + 0.3, modulePixelSize + 0.3);
           } else if (moduleShape === "rounded") {
             const rad = modulePixelSize * 0.35;
-            ctx.beginPath();
-            ctx.roundRect(x, y, modulePixelSize, modulePixelSize, rad);
+            drawRoundRectPath(ctx, x, y, modulePixelSize, modulePixelSize, rad, rad, rad, rad);
             ctx.fill();
           } else if (moduleShape === "dots") {
             ctx.beginPath();
@@ -496,21 +596,20 @@ export function QRStudio() {
             const hasLeft = isDataCell(r, c - 1);
             const hasRight = isDataCell(r, c + 1);
 
-            const rad = modulePixelSize * 0.46;
+            const rad = modulePixelSize * 0.42;
             const tl = !hasTop && !hasLeft ? rad : 0;
             const tr = !hasTop && !hasRight ? rad : 0;
             const br = !hasBottom && !hasRight ? rad : 0;
             const bl = !hasBottom && !hasLeft ? rad : 0;
 
-            ctx.beginPath();
-            ctx.roundRect(x, y, modulePixelSize + 0.25, modulePixelSize + 0.25, [tl, tr, br, bl]);
+            drawRoundRectPath(ctx, x, y, modulePixelSize + 0.1, modulePixelSize + 0.1, tl, tr, br, bl);
             ctx.fill();
           }
         }
       }
 
       // Draw the 3 finder eyes with chosen artistic shape
-      const eyeColor = darkestColor;
+      const eyeColor = bestContrastColor;
       // Top-Left (0, 0)
       drawFinderEye(
         ctx,
@@ -650,10 +749,21 @@ export function QRStudio() {
     if (preset.finderShape) setFinderShape(preset.finderShape);
     if (preset.moduleShape) setModuleShape(preset.moduleShape);
     if (preset.colorMode) setColorMode(preset.colorMode);
+    setSeed(Math.floor(10000 + Math.random() * 900000).toString());
   };
 
   const shuffleColors = () => {
+    // 1. New randomized seed (shifts module scatter, gradient angle, and radial offset)
     setSeed(Math.floor(10000 + Math.random() * 900000).toString());
+
+    // 2. Rotate palette colors so linear gradient, radial glow, and scattered pixels visibly animate on every click
+    setPalette((prev) => {
+      if (prev.length <= 1) return prev;
+      const next = [...prev];
+      const first = next.shift()!;
+      next.push(first);
+      return next;
+    });
   };
 
   // Downloads
@@ -674,6 +784,7 @@ export function QRStudio() {
     const modSize = svgSize / totalModules;
 
     const rng = createRng(seed);
+    const seedNum = Math.abs(parseInt(seed, 10) || 48291);
 
     let logoLeftMod = -1;
     let logoRightMod = -1;
@@ -693,21 +804,37 @@ export function QRStudio() {
     // Gradient defs if requested
     let defsXml = "";
     if (colorMode === "gradient") {
-      const stops = palette
-        .map(
-          (c, idx) =>
-            `<stop offset="${((idx / Math.max(1, palette.length - 1)) * 100).toFixed(1)}%" stop-color="${c}" />`
-        )
-        .join("");
-      defsXml = `<defs><linearGradient id="qrGrad" x1="0%" y1="0%" x2="100%" y2="100%">${stops}</linearGradient></defs>`;
+      const angleMode = seedNum % 4;
+      let coords = 'x1="0%" y1="0%" x2="100%" y2="100%"';
+      if (angleMode === 1) coords = 'x1="50%" y1="0%" x2="50%" y2="100%"';
+      else if (angleMode === 2) coords = 'x1="0%" y1="100%" x2="100%" y2="0%"';
+      else if (angleMode === 3) coords = 'x1="0%" y1="50%" x2="100%" y2="50%"';
+
+      const stops =
+        palette.length === 1
+          ? `<stop offset="0%" stop-color="${palette[0]}" /><stop offset="100%" stop-color="${palette[0]}" />`
+          : palette
+              .map(
+                (c, idx) =>
+                  `<stop offset="${((idx / (palette.length - 1)) * 100).toFixed(1)}%" stop-color="${c}" />`
+              )
+              .join("");
+      defsXml = `<defs><linearGradient id="qrGrad" ${coords}>${stops}</linearGradient></defs>`;
     } else if (colorMode === "radial") {
-      const stops = palette
-        .map(
-          (c, idx) =>
-            `<stop offset="${((idx / Math.max(1, palette.length - 1)) * 100).toFixed(1)}%" stop-color="${c}" />`
-        )
-        .join("");
-      defsXml = `<defs><radialGradient id="qrGrad" cx="50%" cy="50%" r="70%">${stops}</radialGradient></defs>`;
+      const offsetMode = seedNum % 3;
+      const cx = offsetMode === 1 ? "42%" : offsetMode === 2 ? "58%" : "50%";
+      const cy = offsetMode === 1 ? "42%" : offsetMode === 2 ? "58%" : "50%";
+
+      const stops =
+        palette.length === 1
+          ? `<stop offset="0%" stop-color="${palette[0]}" /><stop offset="100%" stop-color="${palette[0]}" />`
+          : palette
+              .map(
+                (c, idx) =>
+                  `<stop offset="${((idx / (palette.length - 1)) * 100).toFixed(1)}%" stop-color="${c}" />`
+              )
+              .join("");
+      defsXml = `<defs><radialGradient id="qrGrad" cx="${cx}" cy="${cy}" r="70%">${stops}</radialGradient></defs>`;
     }
 
     const isDataCell = (r: number, c: number) => {
@@ -760,14 +887,30 @@ export function QRStudio() {
           const hasBottom = isDataCell(r + 1, c);
           const hasLeft = isDataCell(r, c - 1);
           const hasRight = isDataCell(r, c + 1);
-          const rx = !hasTop && !hasLeft && !hasBottom && !hasRight ? (modSize * 0.45).toFixed(2) : (modSize * 0.25).toFixed(2);
-          modulesXml += `<rect x="${x}" y="${y}" width="${w}" height="${w}" rx="${rx}" ${fillAttr} />`;
+
+          const rad = modSize * 0.42;
+          const tl = !hasTop && !hasLeft ? rad : 0;
+          const tr = !hasTop && !hasRight ? rad : 0;
+          const br = !hasBottom && !hasRight ? rad : 0;
+          const bl = !hasBottom && !hasLeft ? rad : 0;
+
+          const p = getSvgRoundedRectPath(
+            (c + quietZone) * modSize,
+            (r + quietZone) * modSize,
+            modSize + 0.05,
+            modSize + 0.05,
+            tl,
+            tr,
+            br,
+            bl
+          );
+          modulesXml += `<path d="${p}" ${fillAttr} />`;
         }
       }
     }
 
     // Finder eyes SVG
-    const eyeColor = darkestColor;
+    const eyeColor = bestContrastColor;
     const findersXml = `
       ${getFinderEyeSvg(quietZone * modSize, quietZone * modSize, modSize, finderShape, eyeColor, bgColor, "tl")}
       ${getFinderEyeSvg((moduleCount - 7 + quietZone) * modSize, quietZone * modSize, modSize, finderShape, eyeColor, bgColor, "tr")}
@@ -1065,7 +1208,7 @@ export function QRStudio() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {palette.map((color, idx) => {
-                      const isDarkest = color === darkestColor;
+                      const isEyeColor = color === bestContrastColor;
                       return (
                         <div
                           key={idx}
@@ -1085,9 +1228,12 @@ export function QRStudio() {
                             maxLength={7}
                           />
                           <div className="flex-1">
-                            {isDarkest && (
-                              <span className="text-[9px] px-1 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                                Lock
+                            {isEyeColor && (
+                              <span
+                                className="text-[9px] px-1 py-0.5 rounded bg-primary/10 text-primary font-medium cursor-help"
+                                title="High-contrast color locked for finder eyes"
+                              >
+                                Eye
                               </span>
                             )}
                           </div>
