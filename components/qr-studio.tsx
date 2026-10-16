@@ -960,7 +960,7 @@ export function QRStudio() {
               )}
             </div>
 
-            {/* CARD 4: Print Sheet PDF */}
+            {/* CARD 4: Print Sheet PDF (Commented out)
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1031,6 +1031,7 @@ export function QRStudio() {
                 </button>
               </div>
             </div>
+            */}
           </div>
 
         </div>
