@@ -17,10 +17,8 @@ import {
   Moon,
   AlertTriangle,
   CheckCircle2,
-  Info,
   Layers,
   Palette,
-  Sliders,
   Printer
 } from "lucide-react";
 
@@ -568,14 +566,9 @@ export function QRStudio() {
               <QrCode className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-base tracking-tight">Mixed Palette QR Studio</span>
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-secondary text-secondary-foreground border border-border">
-                  Next.js + Shadcn
-                </span>
-              </div>
+              <span className="font-semibold text-base tracking-tight">Mixed Palette QR Studio</span>
               <p className="text-xs text-muted-foreground hidden sm:block">
-                Client-side mixed-palette QR generator & print sheet designer
+                Custom styled QR code generator
               </p>
             </div>
           </div>
@@ -618,7 +611,7 @@ export function QRStudio() {
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Enter any URL or plain text. Missing protocols are automatically prefixed with https://.
+                Enter a URL or text.
               </p>
               <div className="space-y-2">
                 <input
@@ -628,10 +621,6 @@ export function QRStudio() {
                   placeholder="e.g. yourbrand.com or https://example.com"
                   className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
                 />
-                <div className="flex justify-between text-xs text-muted-foreground font-mono">
-                  <span>Encoded: <strong className="text-foreground">{normalizedUrl}</strong></span>
-                  <span>{normalizedUrl.length} chars</span>
-                </div>
               </div>
             </div>
 
@@ -652,7 +641,7 @@ export function QRStudio() {
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Data modules are randomly distributed among palette colors. The darkest color is locked to finder patterns for rapid camera scan focus.
+                Customize colors and module shape.
               </p>
 
               {/* Presets */}
@@ -712,9 +701,9 @@ export function QRStudio() {
                     onChange={(e: any) => setModuleShape(e.target.value)}
                     className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs"
                   >
-                    <option value="square">Clean Squares (Default)</option>
-                    <option value="rounded">Smooth Rounded (35%)</option>
-                    <option value="dots">Circular Dots</option>
+                    <option value="square">Squares</option>
+                    <option value="rounded">Rounded</option>
+                    <option value="dots">Dots</option>
                   </select>
                 </div>
 
@@ -810,13 +799,6 @@ export function QRStudio() {
                 <div className="p-3 rounded-2xl border border-border shadow-inner bg-card flex items-center justify-center max-w-full">
                   <canvas ref={canvasRef} className="max-w-full h-auto rounded-lg shadow-sm w-[320px] h-[320px]" />
                 </div>
-                <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground font-mono">
-                  <span>Level H (30%)</span>
-                  <span>•</span>
-                  <span>{qrData.size}x{qrData.size} Modules</span>
-                  <span>•</span>
-                  <span>4M Quiet Zone</span>
-                </div>
               </div>
 
               {/* Action Buttons */}
@@ -855,38 +837,6 @@ export function QRStudio() {
                   </button>
                 </div>
               </div>
-
-              {/* Scan-Safety Diagnostics */}
-              <div className="rounded-lg p-3 bg-secondary/30 border border-border space-y-1.5 text-xs">
-                <div className="flex items-center justify-between font-medium">
-                  <span className="flex items-center gap-1.5">
-                    <Info className="w-3.5 h-3.5 text-primary" />
-                    Scan Safety Diagnostics
-                  </span>
-                  <span className={`font-mono font-semibold ${safetyReport.isSafe ? "text-emerald-500" : "text-amber-500"}`}>
-                    {safetyReport.isSafe ? "100% Safe" : "Attention"}
-                  </span>
-                </div>
-                {safetyReport.warnings.length === 0 ? (
-                  <p className="text-[11px] text-muted-foreground">
-                    All colors meet high contrast thresholds and the darkest color is applied to finder corners for rapid camera locking.
-                  </p>
-                ) : (
-                  <div className="space-y-1 pt-1">
-                    {safetyReport.warnings.map((w, i) => (
-                      <div
-                        key={i}
-                        className={`text-[11px] flex items-start gap-1.5 ${
-                          w.critical ? "text-destructive font-medium" : "text-amber-500"
-                        }`}
-                      >
-                        <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
-                        <span>{w.message}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
           </div>
 
@@ -904,7 +854,7 @@ export function QRStudio() {
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Upload a logo to embed in the center. Tight module clearance keeps the QR dense with no awkward gaps.
+                Embed an image or logo in the center.
               </p>
 
               {/* Upload Dropzone */}
@@ -1015,14 +965,11 @@ export function QRStudio() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Printer className="w-4 h-4 text-primary" />
-                  <h2 className="font-semibold text-sm">A4 Print Sheet Generator (PDF)</h2>
+                  <h2 className="font-semibold text-sm">A4 Print Sheet (PDF)</h2>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
-                  Client-Side
-                </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Evenly arranges multiple high-resolution codes on standard A4 paper ready for printing and cutting.
+                Export multiple codes on A4 paper for printing.
               </p>
 
               <div className="grid grid-cols-3 gap-2">
