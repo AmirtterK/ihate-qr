@@ -19,7 +19,8 @@ import {
   CheckCircle2,
   Layers,
   Palette,
-  Printer
+  Printer,
+  Sparkles
 } from "lucide-react";
 
 // Color presets
@@ -27,16 +28,19 @@ interface Preset {
   name: string;
   colors: string[];
   bg: string;
+  finderShape?: "square" | "circle" | "leaf" | "chamfer";
+  moduleShape?: "square" | "rounded" | "dots" | "diamond" | "fluid";
+  colorMode?: "scatter" | "gradient" | "radial";
 }
 
 const PRESETS: Preset[] = [
-  { name: "Crimson & Noir", colors: ["#E11D48", "#18181B"], bg: "#FFFFFF" },
-  { name: "Ocean & Navy", colors: ["#0284C7", "#0F172A"], bg: "#FFFFFF" },
-  { name: "Forest & Emerald", colors: ["#16A34A", "#064E3B"], bg: "#FFFFFF" },
-  { name: "Sunset Flame", colors: ["#EA580C", "#DC2626", "#450A0A"], bg: "#FFFFFF" },
-  { name: "Cyberpunk Neon", colors: ["#D946EF", "#06B6D4", "#0F172A"], bg: "#FFFFFF" },
-  { name: "Royal Purple", colors: ["#9333EA", "#3B0764"], bg: "#FFFFFF" },
-  { name: "Monochrome Classic", colors: ["#09090B", "#52525B"], bg: "#FFFFFF" },
+  { name: "Crimson & Noir", colors: ["#E11D48", "#18181B"], bg: "#FFFFFF", finderShape: "square", moduleShape: "square", colorMode: "scatter" },
+  { name: "Cyber Neon", colors: ["#06B6D4", "#D946EF", "#3B82F6"], bg: "#09090B", finderShape: "chamfer", moduleShape: "fluid", colorMode: "gradient" },
+  { name: "Zen Bamboo", colors: ["#16A34A", "#064E3B"], bg: "#FBF9F5", finderShape: "leaf", moduleShape: "fluid", colorMode: "gradient" },
+  { name: "Sunset Gold", colors: ["#F59E0B", "#EA580C", "#991B1B"], bg: "#FFFFFF", finderShape: "circle", moduleShape: "diamond", colorMode: "radial" },
+  { name: "Ocean Breeze", colors: ["#0284C7", "#0F172A"], bg: "#FFFFFF", finderShape: "circle", moduleShape: "rounded", colorMode: "gradient" },
+  { name: "Royal Purple", colors: ["#9333EA", "#3B0764"], bg: "#FFFFFF", finderShape: "leaf", moduleShape: "dots", colorMode: "gradient" },
+  { name: "Monochrome Classic", colors: ["#09090B", "#52525B"], bg: "#FFFFFF", finderShape: "square", moduleShape: "square", colorMode: "scatter" },
 ];
 
 // Helper: Hex to RGB
@@ -84,13 +88,177 @@ function createRng(seedStr: string) {
   };
 }
 
+// Draw a custom artistic finder eye pattern (7x7 modules) onto Canvas
+function drawFinderEye(
+  ctx: CanvasRenderingContext2D,
+  originX: number,
+  originY: number,
+  modSize: number,
+  shape: "square" | "circle" | "leaf" | "chamfer",
+  color: string,
+  bgColor: string,
+  corner: "tl" | "tr" | "bl"
+) {
+  const outerSize = 7 * modSize;
+  const innerSize = 5 * modSize;
+  const pupilSize = 3 * modSize;
+  const innerOffset = modSize;
+  const pupilOffset = 2 * modSize;
+
+  const cx = originX + outerSize / 2;
+  const cy = originY + outerSize / 2;
+
+  ctx.save();
+
+  if (shape === "circle") {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    ctx.arc(cx, cy, innerSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, pupilSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (shape === "leaf") {
+    const rOut = 2.4 * modSize;
+    const rIn = 1.6 * modSize;
+    const rPup = 0.9 * modSize;
+
+    let radiiOut = [rOut, 0, rOut, 0];
+    let radiiIn = [rIn, 0, rIn, 0];
+    let radiiPup = [rPup, 0, rPup, 0];
+
+    if (corner === "tr" || corner === "bl") {
+      radiiOut = [0, rOut, 0, rOut];
+      radiiIn = [0, rIn, 0, rIn];
+      radiiPup = [0, rPup, 0, rPup];
+    }
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(originX, originY, outerSize, outerSize, radiiOut);
+    ctx.fill();
+
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    ctx.roundRect(originX + innerOffset, originY + innerOffset, innerSize, innerSize, radiiIn);
+    ctx.fill();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(originX + pupilOffset, originY + pupilOffset, pupilSize, pupilSize, radiiPup);
+    ctx.fill();
+  } else if (shape === "chamfer") {
+    const chOut = 1.7 * modSize;
+    const chIn = 1.1 * modSize;
+    const chPup = 0.7 * modSize;
+
+    const chamferPath = (ox: number, oy: number, sz: number, ch: number) => {
+      ctx.beginPath();
+      ctx.moveTo(ox + ch, oy);
+      ctx.lineTo(ox + sz - ch, oy);
+      ctx.lineTo(ox + sz, oy + ch);
+      ctx.lineTo(ox + sz, oy + sz - ch);
+      ctx.lineTo(ox + sz - ch, oy + sz);
+      ctx.lineTo(ox + ch, oy + sz);
+      ctx.lineTo(ox, oy + sz - ch);
+      ctx.lineTo(ox, oy + ch);
+      ctx.closePath();
+    };
+
+    ctx.fillStyle = color;
+    chamferPath(originX, originY, outerSize, chOut);
+    ctx.fill();
+
+    ctx.fillStyle = bgColor;
+    chamferPath(originX + innerOffset, originY + innerOffset, innerSize, chIn);
+    ctx.fill();
+
+    ctx.fillStyle = color;
+    chamferPath(originX + pupilOffset, originY + pupilOffset, pupilSize, chPup);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = color;
+    ctx.fillRect(originX, originY, outerSize, outerSize);
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(originX + innerOffset, originY + innerOffset, innerSize, innerSize);
+    ctx.fillStyle = color;
+    ctx.fillRect(originX + pupilOffset, originY + pupilOffset, pupilSize, pupilSize);
+  }
+
+  ctx.restore();
+}
+
+// Generate SVG string for an artistic finder eye
+function getFinderEyeSvg(
+  originX: number,
+  originY: number,
+  modSize: number,
+  shape: "square" | "circle" | "leaf" | "chamfer",
+  color: string,
+  bgColor: string,
+  corner: "tl" | "tr" | "bl"
+): string {
+  const outerSize = (7 * modSize).toFixed(2);
+  const innerSize = (5 * modSize).toFixed(2);
+  const pupilSize = (3 * modSize).toFixed(2);
+  const innerOffset = modSize.toFixed(2);
+  const pupilOffset = (2 * modSize).toFixed(2);
+
+  const cx = (originX + 3.5 * modSize).toFixed(2);
+  const cy = (originY + 3.5 * modSize).toFixed(2);
+
+  if (shape === "circle") {
+    const rOut = (3.5 * modSize).toFixed(2);
+    const rIn = (2.5 * modSize).toFixed(2);
+    const rPup = (1.5 * modSize).toFixed(2);
+    return `
+      <circle cx="${cx}" cy="${cy}" r="${rOut}" fill="${color}" />
+      <circle cx="${cx}" cy="${cy}" r="${rIn}" fill="${bgColor}" />
+      <circle cx="${cx}" cy="${cy}" r="${rPup}" fill="${color}" />
+    `;
+  } else if (shape === "leaf") {
+    const rOut = (2.4 * modSize).toFixed(2);
+    const rIn = (1.6 * modSize).toFixed(2);
+    const rPup = (0.9 * modSize).toFixed(2);
+    const rx = (shape === "leaf" ? rOut : "0");
+    return `
+      <rect x="${originX.toFixed(2)}" y="${originY.toFixed(2)}" width="${outerSize}" height="${outerSize}" rx="${rx}" fill="${color}" />
+      <rect x="${(originX + parseFloat(innerOffset)).toFixed(2)}" y="${(originY + parseFloat(innerOffset)).toFixed(2)}" width="${innerSize}" height="${innerSize}" rx="${rIn}" fill="${bgColor}" />
+      <rect x="${(originX + parseFloat(pupilOffset)).toFixed(2)}" y="${(originY + parseFloat(pupilOffset)).toFixed(2)}" width="${pupilSize}" height="${pupilSize}" rx="${rPup}" fill="${color}" />
+    `;
+  } else if (shape === "chamfer") {
+    const ch = (1.6 * modSize).toFixed(2);
+    const ox = originX, oy = originY, sz = 7 * modSize;
+    return `
+      <polygon points="${(ox + 1.6*modSize).toFixed(2)},${oy.toFixed(2)} ${(ox + sz - 1.6*modSize).toFixed(2)},${oy.toFixed(2)} ${(ox + sz).toFixed(2)},${(oy + 1.6*modSize).toFixed(2)} ${(ox + sz).toFixed(2)},${(oy + sz - 1.6*modSize).toFixed(2)} ${(ox + sz - 1.6*modSize).toFixed(2)},${(oy + sz).toFixed(2)} ${(ox + 1.6*modSize).toFixed(2)},${(oy + sz).toFixed(2)} ${ox.toFixed(2)},${(oy + sz - 1.6*modSize).toFixed(2)} ${ox.toFixed(2)},${(oy + 1.6*modSize).toFixed(2)}" fill="${color}" />
+      <rect x="${(originX + parseFloat(innerOffset)).toFixed(2)}" y="${(originY + parseFloat(innerOffset)).toFixed(2)}" width="${innerSize}" height="${innerSize}" rx="${(modSize*0.5).toFixed(2)}" fill="${bgColor}" />
+      <rect x="${(originX + parseFloat(pupilOffset)).toFixed(2)}" y="${(originY + parseFloat(pupilOffset)).toFixed(2)}" width="${pupilSize}" height="${pupilSize}" rx="${(modSize*0.4).toFixed(2)}" fill="${color}" />
+    `;
+  } else {
+    return `
+      <rect x="${originX.toFixed(2)}" y="${originY.toFixed(2)}" width="${outerSize}" height="${outerSize}" fill="${color}" />
+      <rect x="${(originX + parseFloat(innerOffset)).toFixed(2)}" y="${(originY + parseFloat(innerOffset)).toFixed(2)}" width="${innerSize}" height="${innerSize}" fill="${bgColor}" />
+      <rect x="${(originX + parseFloat(pupilOffset)).toFixed(2)}" y="${(originY + parseFloat(pupilOffset)).toFixed(2)}" width="${pupilSize}" height="${pupilSize}" fill="${color}" />
+    `;
+  }
+}
+
 export function QRStudio() {
   // Inputs
   const [url, setUrl] = useState("https://github.com");
   const [palette, setPalette] = useState<string[]>(["#E11D48", "#18181B"]);
   const [bgColor, setBgColor] = useState("#FFFFFF");
   const [seed, setSeed] = useState("48291");
-  const [moduleShape, setModuleShape] = useState<"square" | "rounded" | "dots">("square");
+  const [finderShape, setFinderShape] = useState<"square" | "circle" | "leaf" | "chamfer">("square");
+  const [moduleShape, setModuleShape] = useState<"square" | "rounded" | "dots" | "diamond" | "fluid">("square");
+  const [colorMode, setColorMode] = useState<"scatter" | "gradient" | "radial">("scatter");
 
   // Logo state
   const [logoImage, setLogoImage] = useState<HTMLImageElement | null>(null);
@@ -207,7 +375,7 @@ export function QRStudio() {
       const ctx = targetCanvas.getContext("2d");
       if (!ctx) return;
 
-      const { size: moduleCount, modules, isFinderPattern } = qrData;
+      const { size: moduleCount, modules } = qrData;
       targetCanvas.width = targetSize;
       targetCanvas.height = targetSize;
 
@@ -223,7 +391,7 @@ export function QRStudio() {
       // Deterministic PRNG for module colors
       const rng = createRng(seed);
 
-      // Tight logo clearance: exactly clear the modules covered by the logo without excess gap
+      // Tight logo clearance
       let logoLeftMod = -1;
       let logoRightMod = -1;
       let logoTopMod = -1;
@@ -233,42 +401,71 @@ export function QRStudio() {
         const logoModules = (logoSizePercent / 100) * moduleCount;
         const center = moduleCount / 2;
         const half = logoModules / 2;
-        // Tight clearance with zero extra margin so modules sit right up to the logo
         logoLeftMod = Math.floor(center - half);
         logoRightMod = Math.ceil(center + half) - 1;
         logoTopMod = Math.floor(center - half);
         logoBottomMod = Math.ceil(center + half) - 1;
       }
 
-      // Draw modules
+      // Precompute gradient fill if requested
+      let fillGradient: CanvasGradient | null = null;
+      if (colorMode === "gradient") {
+        fillGradient = ctx.createLinearGradient(0, 0, targetSize, targetSize);
+        palette.forEach((c, idx) => {
+          fillGradient!.addColorStop(idx / Math.max(1, palette.length - 1), c);
+        });
+      } else if (colorMode === "radial") {
+        fillGradient = ctx.createRadialGradient(
+          targetSize / 2,
+          targetSize / 2,
+          targetSize * 0.05,
+          targetSize / 2,
+          targetSize / 2,
+          targetSize * 0.72
+        );
+        palette.forEach((c, idx) => {
+          fillGradient!.addColorStop(idx / Math.max(1, palette.length - 1), c);
+        });
+      }
+
+      // Helper to check if a cell is an active data module (for fluid ribbon connections)
+      const isDataCell = (r: number, c: number) => {
+        if (r < 0 || r >= moduleCount || c < 0 || c >= moduleCount) return false;
+        // Exclude finder pattern areas (7x7 finders + separators)
+        if (r < 8 && c < 8) return false;
+        if (r < 8 && c >= moduleCount - 8) return false;
+        if (r >= moduleCount - 8 && c < 8) return false;
+        // Exclude under logo
+        if (logoSrc && r >= logoTopMod && r <= logoBottomMod && c >= logoLeftMod && c <= logoRightMod) return false;
+        return modules[r][c];
+      };
+
+      // Draw all data modules
       for (let r = 0; r < moduleCount; r++) {
         for (let c = 0; c < moduleCount; c++) {
           if (!modules[r][c]) continue;
 
-          // Clear modules under logo area
-          if (
-            logoSrc &&
-            r >= logoTopMod &&
-            r <= logoBottomMod &&
-            c >= logoLeftMod &&
-            c <= logoRightMod
-          ) {
+          // Skip finder patterns (drawn with precision finder shapes)
+          if ((r < 8 && c < 8) || (r < 8 && c >= moduleCount - 8) || (r >= moduleCount - 8 && c < 8)) {
+            continue;
+          }
+
+          // Skip modules under logo
+          if (logoSrc && r >= logoTopMod && r <= logoBottomMod && c >= logoLeftMod && c <= logoRightMod) {
             continue;
           }
 
           const x = (c + quietZone) * modulePixelSize;
           const y = (r + quietZone) * modulePixelSize;
 
-          let color = darkestColor;
-          if (!isFinderPattern[r][c]) {
-            // Randomly assign from palette
+          if (fillGradient) {
+            ctx.fillStyle = fillGradient;
+          } else {
             const colorIdx = Math.floor(rng() * palette.length);
-            color = palette[colorIdx];
+            ctx.fillStyle = palette[colorIdx];
           }
 
-          ctx.fillStyle = color;
-
-          if (isFinderPattern[r][c] || moduleShape === "square") {
+          if (moduleShape === "square") {
             ctx.fillRect(x, y, modulePixelSize + 0.3, modulePixelSize + 0.3);
           } else if (moduleShape === "rounded") {
             const rad = modulePixelSize * 0.35;
@@ -285,9 +482,68 @@ export function QRStudio() {
               Math.PI * 2
             );
             ctx.fill();
+          } else if (moduleShape === "diamond") {
+            ctx.beginPath();
+            ctx.moveTo(x + modulePixelSize / 2, y);
+            ctx.lineTo(x + modulePixelSize, y + modulePixelSize / 2);
+            ctx.lineTo(x + modulePixelSize / 2, y + modulePixelSize);
+            ctx.lineTo(x, y + modulePixelSize / 2);
+            ctx.closePath();
+            ctx.fill();
+          } else if (moduleShape === "fluid") {
+            const hasTop = isDataCell(r - 1, c);
+            const hasBottom = isDataCell(r + 1, c);
+            const hasLeft = isDataCell(r, c - 1);
+            const hasRight = isDataCell(r, c + 1);
+
+            const rad = modulePixelSize * 0.46;
+            const tl = !hasTop && !hasLeft ? rad : 0;
+            const tr = !hasTop && !hasRight ? rad : 0;
+            const br = !hasBottom && !hasRight ? rad : 0;
+            const bl = !hasBottom && !hasLeft ? rad : 0;
+
+            ctx.beginPath();
+            ctx.roundRect(x, y, modulePixelSize + 0.25, modulePixelSize + 0.25, [tl, tr, br, bl]);
+            ctx.fill();
           }
         }
       }
+
+      // Draw the 3 finder eyes with chosen artistic shape
+      const eyeColor = darkestColor;
+      // Top-Left (0, 0)
+      drawFinderEye(
+        ctx,
+        quietZone * modulePixelSize,
+        quietZone * modulePixelSize,
+        modulePixelSize,
+        finderShape,
+        eyeColor,
+        bgColor,
+        "tl"
+      );
+      // Top-Right (0, moduleCount - 7)
+      drawFinderEye(
+        ctx,
+        (moduleCount - 7 + quietZone) * modulePixelSize,
+        quietZone * modulePixelSize,
+        modulePixelSize,
+        finderShape,
+        eyeColor,
+        bgColor,
+        "tr"
+      );
+      // Bottom-Left (moduleCount - 7, 0)
+      drawFinderEye(
+        ctx,
+        quietZone * modulePixelSize,
+        (moduleCount - 7 + quietZone) * modulePixelSize,
+        modulePixelSize,
+        finderShape,
+        eyeColor,
+        bgColor,
+        "bl"
+      );
 
       // Draw Logo if present
       if (logoImage && logoSrc) {
@@ -297,9 +553,8 @@ export function QRStudio() {
         const lx = cx - logoPixelSize / 2;
         const ly = cy - logoPixelSize / 2;
 
-        // Subtle tight backing plate
         if (logoBacking !== "none") {
-          const pad = modulePixelSize * 0.25; // Subtle tight padding
+          const pad = modulePixelSize * 0.25;
           ctx.fillStyle = logoBackingColor;
           if (logoBacking === "circle") {
             ctx.beginPath();
@@ -320,7 +575,6 @@ export function QRStudio() {
           }
         }
 
-        // Draw image centered & contained
         ctx.drawImage(logoImage, lx, ly, logoPixelSize, logoPixelSize);
       }
     },
@@ -330,7 +584,9 @@ export function QRStudio() {
       bgColor,
       darkestColor,
       seed,
+      finderShape,
       moduleShape,
+      colorMode,
       logoSrc,
       logoImage,
       logoSizePercent,
@@ -391,6 +647,9 @@ export function QRStudio() {
   const applyPreset = (preset: Preset) => {
     setPalette([...preset.colors]);
     setBgColor(preset.bg);
+    if (preset.finderShape) setFinderShape(preset.finderShape);
+    if (preset.moduleShape) setModuleShape(preset.moduleShape);
+    if (preset.colorMode) setColorMode(preset.colorMode);
   };
 
   const shuffleColors = () => {
@@ -408,7 +667,7 @@ export function QRStudio() {
   };
 
   const downloadSvg = () => {
-    const { size: moduleCount, modules, isFinderPattern } = qrData;
+    const { size: moduleCount, modules } = qrData;
     const quietZone = 4;
     const totalModules = moduleCount + quietZone * 2;
     const svgSize = 1024;
@@ -431,40 +690,89 @@ export function QRStudio() {
       logoBottomMod = Math.ceil(center + half) - 1;
     }
 
-    // Group rects by color
-    const colorGroups: Record<string, string[]> = {};
+    // Gradient defs if requested
+    let defsXml = "";
+    if (colorMode === "gradient") {
+      const stops = palette
+        .map(
+          (c, idx) =>
+            `<stop offset="${((idx / Math.max(1, palette.length - 1)) * 100).toFixed(1)}%" stop-color="${c}" />`
+        )
+        .join("");
+      defsXml = `<defs><linearGradient id="qrGrad" x1="0%" y1="0%" x2="100%" y2="100%">${stops}</linearGradient></defs>`;
+    } else if (colorMode === "radial") {
+      const stops = palette
+        .map(
+          (c, idx) =>
+            `<stop offset="${((idx / Math.max(1, palette.length - 1)) * 100).toFixed(1)}%" stop-color="${c}" />`
+        )
+        .join("");
+      defsXml = `<defs><radialGradient id="qrGrad" cx="50%" cy="50%" r="70%">${stops}</radialGradient></defs>`;
+    }
+
+    const isDataCell = (r: number, c: number) => {
+      if (r < 0 || r >= moduleCount || c < 0 || c >= moduleCount) return false;
+      if (r < 8 && c < 8) return false;
+      if (r < 8 && c >= moduleCount - 8) return false;
+      if (r >= moduleCount - 8 && c < 8) return false;
+      if (logoSrc && r >= logoTopMod && r <= logoBottomMod && c >= logoLeftMod && c <= logoRightMod) return false;
+      return modules[r][c];
+    };
+
+    // Render data modules
+    let modulesXml = "";
     for (let r = 0; r < moduleCount; r++) {
       for (let c = 0; c < moduleCount; c++) {
         if (!modules[r][c]) continue;
-        if (
-          logoSrc &&
-          r >= logoTopMod &&
-          r <= logoBottomMod &&
-          c >= logoLeftMod &&
-          c <= logoRightMod
-        ) {
-          continue;
-        }
+        if ((r < 8 && c < 8) || (r < 8 && c >= moduleCount - 8) || (r >= moduleCount - 8 && c < 8)) continue;
+        if (logoSrc && r >= logoTopMod && r <= logoBottomMod && c >= logoLeftMod && c <= logoRightMod) continue;
 
         const x = ((c + quietZone) * modSize).toFixed(2);
         const y = ((r + quietZone) * modSize).toFixed(2);
         const w = (modSize + 0.1).toFixed(2);
 
-        let color = darkestColor;
-        if (!isFinderPattern[r][c]) {
+        let fillAttr = "";
+        if (colorMode === "scatter") {
           const colorIdx = Math.floor(rng() * palette.length);
-          color = palette[colorIdx];
+          fillAttr = `fill="${palette[colorIdx]}"`;
+        } else {
+          fillAttr = `fill="url(#qrGrad)"`;
         }
 
-        if (!colorGroups[color]) colorGroups[color] = [];
-        colorGroups[color].push(`<rect x="${x}" y="${y}" width="${w}" height="${w}" />`);
+        if (moduleShape === "square") {
+          modulesXml += `<rect x="${x}" y="${y}" width="${w}" height="${w}" ${fillAttr} />`;
+        } else if (moduleShape === "rounded") {
+          const rx = (modSize * 0.35).toFixed(2);
+          modulesXml += `<rect x="${x}" y="${y}" width="${w}" height="${w}" rx="${rx}" ${fillAttr} />`;
+        } else if (moduleShape === "dots") {
+          const cx = ((c + quietZone + 0.5) * modSize).toFixed(2);
+          const cy = ((r + quietZone + 0.5) * modSize).toFixed(2);
+          const rad = (modSize * 0.44).toFixed(2);
+          modulesXml += `<circle cx="${cx}" cy="${cy}" r="${rad}" ${fillAttr} />`;
+        } else if (moduleShape === "diamond") {
+          const mx = (parseFloat(x) + modSize / 2).toFixed(2);
+          const my = (parseFloat(y) + modSize / 2).toFixed(2);
+          const x2 = (parseFloat(x) + modSize).toFixed(2);
+          const y2 = (parseFloat(y) + modSize).toFixed(2);
+          modulesXml += `<polygon points="${mx},${y} ${x2},${my} ${mx},${y2} ${x},${my}" ${fillAttr} />`;
+        } else if (moduleShape === "fluid") {
+          const hasTop = isDataCell(r - 1, c);
+          const hasBottom = isDataCell(r + 1, c);
+          const hasLeft = isDataCell(r, c - 1);
+          const hasRight = isDataCell(r, c + 1);
+          const rx = !hasTop && !hasLeft && !hasBottom && !hasRight ? (modSize * 0.45).toFixed(2) : (modSize * 0.25).toFixed(2);
+          modulesXml += `<rect x="${x}" y="${y}" width="${w}" height="${w}" rx="${rx}" ${fillAttr} />`;
+        }
       }
     }
 
-    let groupsXml = "";
-    for (const [color, rects] of Object.entries(colorGroups)) {
-      groupsXml += `<g fill="${color}">${rects.join("")}</g>`;
-    }
+    // Finder eyes SVG
+    const eyeColor = darkestColor;
+    const findersXml = `
+      ${getFinderEyeSvg(quietZone * modSize, quietZone * modSize, modSize, finderShape, eyeColor, bgColor, "tl")}
+      ${getFinderEyeSvg((moduleCount - 7 + quietZone) * modSize, quietZone * modSize, modSize, finderShape, eyeColor, bgColor, "tr")}
+      ${getFinderEyeSvg(quietZone * modSize, (moduleCount - 7 + quietZone) * modSize, modSize, finderShape, eyeColor, bgColor, "bl")}
+    `;
 
     // Logo XML
     let logoXml = "";
@@ -498,7 +806,9 @@ export function QRStudio() {
     const svgContent = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgSize} ${svgSize}" width="${svgSize}" height="${svgSize}">
   <rect width="100%" height="100%" fill="${bgColor}" />
-  ${groupsXml}
+  ${defsXml}
+  ${modulesXml}
+  ${findersXml}
   ${logoXml}
 </svg>`;
 
@@ -624,12 +934,12 @@ export function QRStudio() {
               </div>
             </div>
 
-            {/* CARD 2: Color Palette */}
+            {/* CARD 2: Color Palette & Artistic Styling */}
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Palette className="w-4 h-4 text-primary" />
-                  <h2 className="font-semibold text-sm">Color Palette & Mixed Style</h2>
+                  <h2 className="font-semibold text-sm">Style & Colors</h2>
                 </div>
                 <button
                   onClick={addColor}
@@ -641,12 +951,12 @@ export function QRStudio() {
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Customize colors and module shape.
+                Customize palette, eye shapes, and artistic flow.
               </p>
 
               {/* Presets */}
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Preset Palettes</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Preset Palettes & Styles</label>
                 <div className="flex flex-wrap gap-1.5">
                   {PRESETS.map((p) => (
                     <button
@@ -669,8 +979,54 @@ export function QRStudio() {
                 </div>
               </div>
 
-              {/* Background Color */}
-              <div className="pt-2 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Artistic Style Selectors */}
+              <div className="pt-2 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Eye Style */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground block">Eye Shape</label>
+                  <select
+                    value={finderShape}
+                    onChange={(e: any) => setFinderShape(e.target.value)}
+                    className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <option value="square">Squares (Classic)</option>
+                    <option value="circle">Circles (Soft Rings)</option>
+                    <option value="leaf">Leaf (Organic)</option>
+                    <option value="chamfer">Chamfer (Cyber)</option>
+                  </select>
+                </div>
+
+                {/* Module Shape */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground block">Module Geometry</label>
+                  <select
+                    value={moduleShape}
+                    onChange={(e: any) => setModuleShape(e.target.value)}
+                    className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <option value="square">Squares</option>
+                    <option value="rounded">Rounded</option>
+                    <option value="dots">Dots</option>
+                    <option value="diamond">Diamonds</option>
+                    <option value="fluid">Fluid Ribbons</option>
+                  </select>
+                </div>
+
+                {/* Color Flow Mode */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground block">Color Flow</label>
+                  <select
+                    value={colorMode}
+                    onChange={(e: any) => setColorMode(e.target.value)}
+                    className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <option value="scatter">Scattered (Mixed Pixels)</option>
+                    <option value="gradient">Linear Gradient</option>
+                    <option value="radial">Radial Glow</option>
+                  </select>
+                </div>
+
+                {/* Background Canvas */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground flex justify-between">
                     <span>Background Canvas</span>
@@ -681,30 +1037,16 @@ export function QRStudio() {
                       type="color"
                       value={bgColor}
                       onChange={(e) => setBgColor(e.target.value)}
-                      className="w-9 h-9 rounded cursor-pointer"
+                      className="w-9 h-9 rounded cursor-pointer shrink-0"
                     />
                     <input
                       type="text"
                       value={bgColor}
                       onChange={(e) => setBgColor(e.target.value)}
-                      className="h-9 px-3 rounded-md border border-input bg-background font-mono text-xs uppercase flex-1"
+                      className="h-9 px-2.5 rounded-md border border-input bg-background font-mono text-xs uppercase flex-1"
                       maxLength={7}
                     />
                   </div>
-                </div>
-
-                {/* Module Corner Style */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground block">Corner Style</label>
-                  <select
-                    value={moduleShape}
-                    onChange={(e: any) => setModuleShape(e.target.value)}
-                    className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs"
-                  >
-                    <option value="square">Squares</option>
-                    <option value="rounded">Rounded</option>
-                    <option value="dots">Dots</option>
-                  </select>
                 </div>
 
                 {/* Module Colors */}
