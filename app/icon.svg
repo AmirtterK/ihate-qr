@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E11D48" />
+      <stop offset="100%" stop-color="#9333EA" />
+    </linearGradient>
+  </defs>
+  <!-- Background rounded plate -->
+  <rect width="32" height="32" rx="7" fill="url(#grad)" />
+  
+  <!-- Top-Left Finder -->
+  <rect x="5" y="5" width="8" height="8" rx="1.5" stroke="#FFFFFF" stroke-width="1.6" fill="none" />
+  <rect x="7.5" y="7.5" width="3" height="3" rx="0.5" fill="#FFFFFF" />
+
+  <!-- Top-Right Finder -->
+  <rect x="19" y="5" width="8" height="8" rx="1.5" stroke="#FFFFFF" stroke-width="1.6" fill="none" />
+  <rect x="21.5" y="7.5" width="3" height="3" rx="0.5" fill="#FFFFFF" />
+
+  <!-- Bottom-Left Finder -->
+  <rect x="5" y="19" width="8" height="8" rx="1.5" stroke="#FFFFFF" stroke-width="1.6" fill="none" />
+  <rect x="7.5" y="21.5" width="3" height="3" rx="0.5" fill="#FFFFFF" />
+
+  <!-- Central & Accent Data modules -->
+  <rect x="15" y="15" width="2.5" height="2.5" rx="0.5" fill="#FFFFFF" />
+  <rect x="19" y="19" width="3" height="3" rx="0.6" fill="#FFFFFF" />
+  <rect x="23.5" y="23.5" width="3.5" height="3.5" rx="0.6" fill="#FFFFFF" />
+  <rect x="15" y="23.5" width="2.5" height="2.5" rx="0.5" fill="#FFFFFF" opacity="0.85" />
+  <rect x="23.5" y="15" width="2.5" height="2.5" rx="0.5" fill="#FFFFFF" opacity="0.85" />
+</svg>

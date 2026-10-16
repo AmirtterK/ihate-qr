@@ -566,7 +566,7 @@ export function QRStudio() {
               <QrCode className="w-5 h-5" />
             </div>
             <div>
-              <span className="font-semibold text-base tracking-tight">Mixed Palette QR Studio</span>
+              <span className="font-semibold text-base tracking-tight">QR Studio</span>
               <p className="text-xs text-muted-foreground hidden sm:block">
                 Custom styled QR code generator
               </p>

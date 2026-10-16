@@ -6,8 +6,11 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "Mixed Palette QR Studio — Modern Styled QR Generator",
-  description: "Next.js client-side styled QR code generator with mixed multi-color palettes, center logo, scan safety analysis, high-res PNG/SVG export, and A4 print sheet PDF generator.",
+  title: "QR Studio",
+  description: "Custom styled mixed-palette QR code generator",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
