@@ -1050,7 +1050,7 @@ export function QRStudio() {
       <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-6 md:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
-          {/* COLUMN 1 (LEFT): Content & Colors (lg:col-span-4) */}
+          {/* COLUMN 1 (LEFT): Content & Logo (lg:col-span-4) */}
           <div className="lg:col-span-4 space-y-6">
             {/* CARD 1: Content & URL */}
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
@@ -1077,7 +1077,201 @@ export function QRStudio() {
               </div>
             </div>
 
-            {/* CARD 2: Color Palette & Artistic Styling */}
+            {/* CARD 2: Center Logo (Optional) */}
+            <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-primary" />
+                  <h2 className="font-semibold text-sm">Center Logo (Optional)</h2>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
+                  {logoSrc ? "Active" : "None"}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Embed an image or logo in the center.
+              </p>
+
+              {/* Upload Dropzone */}
+              {!logoSrc ? (
+                <label className="border-2 border-dashed border-border hover:border-primary/50 transition rounded-lg p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer bg-secondary/20 group">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                    onChange={handleLogoUpload}
+                    className="sr-only"
+                  />
+                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground group-hover:text-primary transition">
+                    <Upload className="w-4 h-4" />
+                  </div>
+                  <div className="text-xs font-medium">Click or drag & drop logo</div>
+                  <div className="text-[11px] text-muted-foreground">PNG, JPG, SVG, WebP</div>
+                </label>
+              ) : (
+                <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-secondary/20">
+                  <div className="flex items-center gap-2.5">
+                    <img
+                      src={logoSrc}
+                      alt="Logo"
+                      className="w-9 h-9 object-contain rounded border border-border bg-white p-0.5"
+                    />
+                    <div>
+                      <div className="text-xs font-medium truncate max-w-[140px]">{logoName}</div>
+                      <div className="text-[10px] text-muted-foreground">Centered tightly</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={removeLogo}
+                    className="text-xs px-2 py-1 rounded-md border border-destructive/40 text-destructive hover:bg-destructive/10 transition"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+
+              {/* Logo Controls */}
+              {logoSrc && (
+                <div className="space-y-3 pt-1 border-t border-border">
+                  <div>
+                    <div className="flex justify-between text-xs font-medium mb-1.5">
+                      <span className="text-muted-foreground">Logo Size (% of QR width)</span>
+                      <span className="font-mono">{logoSizePercent}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={10}
+                      max={25}
+                      step={1}
+                      value={logoSizePercent}
+                      onChange={(e) => setLogoSizePercent(Number(e.target.value))}
+                    />
+                    <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                      <span>10% (Safe)</span>
+                      <span>18% (Recommended)</span>
+                      <span>25% (Max)</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground block">Backing Plate</label>
+                      <select
+                        value={logoBacking}
+                        onChange={(e: any) => setLogoBacking(e.target.value)}
+                        className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs"
+                      >
+                        <option value="rounded">Rounded Square</option>
+                        <option value="circle">Circle</option>
+                        <option value="square">Square</option>
+                        <option value="none">None (Transparent)</option>
+                      </select>
+                    </div>
+
+                    {logoBacking !== "none" && (
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground flex justify-between">
+                          <span>Backing Color</span>
+                          <span className="font-mono text-xs uppercase">{logoBackingColor}</span>
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="color"
+                            value={logoBackingColor}
+                            onChange={(e) => setLogoBackingColor(e.target.value)}
+                            className="w-8 h-8 rounded cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={logoBackingColor}
+                            onChange={(e) => setLogoBackingColor(e.target.value)}
+                            className="h-8 px-2 rounded-md border border-input bg-background font-mono text-xs uppercase flex-1"
+                            maxLength={7}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* COLUMN 2 (CENTER): Live Preview & Quick Actions (lg:col-span-4) */}
+          <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-20">
+            <div className="rounded-xl border border-border bg-card p-5 shadow-md space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <h3 className="font-semibold text-sm">QR Code Preview</h3>
+                </div>
+                <div
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    safetyReport.isSafe
+                      ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                      : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                  }`}
+                >
+                  {safetyReport.isSafe ? (
+                    <>
+                      <CheckCircle2 className="w-3 h-3" /> Scan Ready
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="w-3 h-3" /> Warning
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Canvas Frame */}
+              <div className="py-2 flex flex-col items-center justify-center">
+                <div className="p-3 rounded-2xl border border-border shadow-inner bg-card flex items-center justify-center max-w-full">
+                  <canvas ref={canvasRef} className="max-w-full h-auto rounded-lg shadow-sm w-[320px] h-[320px]" />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2.5 pt-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={downloadPng}
+                    className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition shadow-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download PNG
+                  </button>
+                  <button
+                    onClick={downloadSvg}
+                    className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-md border border-input bg-background hover:bg-secondary text-sm font-medium transition"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download SVG
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                  <button
+                    onClick={shuffleColors}
+                    className="hover:text-foreground transition flex items-center gap-1 font-medium text-foreground"
+                  >
+                    <Shuffle className="w-3.5 h-3.5" />
+                    Shuffle Pattern
+                  </button>
+                  <button
+                    onClick={copyToClipboard}
+                    className="hover:text-foreground transition underline flex items-center gap-1"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? "Copied!" : "Copy to Clipboard"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* COLUMN 3 (RIGHT): Style & Colors (lg:col-span-4) */}
+          <div className="lg:col-span-4 space-y-6">
+            {/* CARD 3: Color Palette & Artistic Styling */}
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1252,200 +1446,6 @@ export function QRStudio() {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* COLUMN 2 (CENTER): Live Preview & Quick Actions (lg:col-span-4) */}
-          <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-20">
-            <div className="rounded-xl border border-border bg-card p-5 shadow-md space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <h3 className="font-semibold text-sm">QR Code Preview</h3>
-                </div>
-                <div
-                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    safetyReport.isSafe
-                      ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                      : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-                  }`}
-                >
-                  {safetyReport.isSafe ? (
-                    <>
-                      <CheckCircle2 className="w-3 h-3" /> Scan Ready
-                    </>
-                  ) : (
-                    <>
-                      <AlertTriangle className="w-3 h-3" /> Warning
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Canvas Frame */}
-              <div className="py-2 flex flex-col items-center justify-center">
-                <div className="p-3 rounded-2xl border border-border shadow-inner bg-card flex items-center justify-center max-w-full">
-                  <canvas ref={canvasRef} className="max-w-full h-auto rounded-lg shadow-sm w-[320px] h-[320px]" />
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="space-y-2.5 pt-1">
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={downloadPng}
-                    className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition shadow-sm"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download PNG
-                  </button>
-                  <button
-                    onClick={downloadSvg}
-                    className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-md border border-input bg-background hover:bg-secondary text-sm font-medium transition"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download SVG
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
-                  <button
-                    onClick={shuffleColors}
-                    className="hover:text-foreground transition flex items-center gap-1 font-medium text-foreground"
-                  >
-                    <Shuffle className="w-3.5 h-3.5" />
-                    Shuffle Pattern
-                  </button>
-                  <button
-                    onClick={copyToClipboard}
-                    className="hover:text-foreground transition underline flex items-center gap-1"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copied ? "Copied!" : "Copy to Clipboard"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* COLUMN 3 (RIGHT): Center Logo & Print Sheet (lg:col-span-4) */}
-          <div className="lg:col-span-4 space-y-6">
-            {/* CARD 3: Center Logo */}
-            <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-primary" />
-                  <h2 className="font-semibold text-sm">Center Logo (Optional)</h2>
-                </div>
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
-                  {logoSrc ? "Active" : "None"}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Embed an image or logo in the center.
-              </p>
-
-              {/* Upload Dropzone */}
-              {!logoSrc ? (
-                <label className="border-2 border-dashed border-border hover:border-primary/50 transition rounded-lg p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer bg-secondary/20 group">
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                    onChange={handleLogoUpload}
-                    className="sr-only"
-                  />
-                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground group-hover:text-primary transition">
-                    <Upload className="w-4 h-4" />
-                  </div>
-                  <div className="text-xs font-medium">Click or drag & drop logo</div>
-                  <div className="text-[11px] text-muted-foreground">PNG, JPG, SVG, WebP</div>
-                </label>
-              ) : (
-                <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-secondary/20">
-                  <div className="flex items-center gap-2.5">
-                    <img
-                      src={logoSrc}
-                      alt="Logo"
-                      className="w-9 h-9 object-contain rounded border border-border bg-white p-0.5"
-                    />
-                    <div>
-                      <div className="text-xs font-medium truncate max-w-[140px]">{logoName}</div>
-                      <div className="text-[10px] text-muted-foreground">Centered tightly</div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={removeLogo}
-                    className="text-xs px-2 py-1 rounded-md border border-destructive/40 text-destructive hover:bg-destructive/10 transition"
-                  >
-                    Remove
-                  </button>
-                </div>
-              )}
-
-              {/* Logo Controls */}
-              {logoSrc && (
-                <div className="space-y-3 pt-1 border-t border-border">
-                  <div>
-                    <div className="flex justify-between text-xs font-medium mb-1.5">
-                      <span className="text-muted-foreground">Logo Size (% of QR width)</span>
-                      <span className="font-mono">{logoSizePercent}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={10}
-                      max={25}
-                      step={1}
-                      value={logoSizePercent}
-                      onChange={(e) => setLogoSizePercent(Number(e.target.value))}
-                    />
-                    <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                      <span>10% (Safe)</span>
-                      <span>18% (Recommended)</span>
-                      <span>25% (Max)</span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground block">Backing Plate</label>
-                      <select
-                        value={logoBacking}
-                        onChange={(e: any) => setLogoBacking(e.target.value)}
-                        className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs"
-                      >
-                        <option value="rounded">Rounded Square</option>
-                        <option value="circle">Circle</option>
-                        <option value="square">Square</option>
-                        <option value="none">None (Transparent)</option>
-                      </select>
-                    </div>
-
-                    {logoBacking !== "none" && (
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground flex justify-between">
-                          <span>Backing Color</span>
-                          <span className="font-mono text-xs uppercase">{logoBackingColor}</span>
-                        </label>
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="color"
-                            value={logoBackingColor}
-                            onChange={(e) => setLogoBackingColor(e.target.value)}
-                            className="w-8 h-8 rounded cursor-pointer"
-                          />
-                          <input
-                            type="text"
-                            value={logoBackingColor}
-                            onChange={(e) => setLogoBackingColor(e.target.value)}
-                            className="h-8 px-2 rounded-md border border-input bg-background font-mono text-xs uppercase flex-1"
-                            maxLength={7}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* CARD 4: Print Sheet PDF (Commented out)
