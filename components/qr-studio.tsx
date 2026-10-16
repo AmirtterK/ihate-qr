@@ -225,22 +225,21 @@ export function QRStudio() {
       // Deterministic PRNG for module colors
       const rng = createRng(seed);
 
-      // Logo coverage calculations
+      // Tight logo clearance: exactly clear the modules covered by the logo without excess gap
       let logoLeftMod = -1;
       let logoRightMod = -1;
       let logoTopMod = -1;
       let logoBottomMod = -1;
 
       if (logoSrc) {
-        const logoModules = Math.ceil((logoSizePercent / 100) * moduleCount);
+        const logoModules = (logoSizePercent / 100) * moduleCount;
         const center = moduleCount / 2;
         const half = logoModules / 2;
-        // 1 module quiet margin around logo
-        const margin = 1;
-        logoLeftMod = Math.floor(center - half) - margin;
-        logoRightMod = Math.ceil(center + half) + margin;
-        logoTopMod = Math.floor(center - half) - margin;
-        logoBottomMod = Math.ceil(center + half) + margin;
+        // Tight clearance with zero extra margin so modules sit right up to the logo
+        logoLeftMod = Math.floor(center - half);
+        logoRightMod = Math.ceil(center + half) - 1;
+        logoTopMod = Math.floor(center - half);
+        logoBottomMod = Math.ceil(center + half) - 1;
       }
 
       // Draw modules
@@ -300,9 +299,9 @@ export function QRStudio() {
         const lx = cx - logoPixelSize / 2;
         const ly = cy - logoPixelSize / 2;
 
-        // Backing plate
+        // Subtle tight backing plate
         if (logoBacking !== "none") {
-          const pad = modulePixelSize * 0.8;
+          const pad = modulePixelSize * 0.25; // Subtle tight padding
           ctx.fillStyle = logoBackingColor;
           if (logoBacking === "circle") {
             ctx.beginPath();
@@ -315,7 +314,7 @@ export function QRStudio() {
               ly - pad / 2,
               logoPixelSize + pad,
               logoPixelSize + pad,
-              (logoPixelSize + pad) * 0.25
+              (logoPixelSize + pad) * 0.22
             );
             ctx.fill();
           } else {
@@ -396,7 +395,7 @@ export function QRStudio() {
     setBgColor(preset.bg);
   };
 
-  const shuffleSeed = () => {
+  const shuffleColors = () => {
     setSeed(Math.floor(10000 + Math.random() * 900000).toString());
   };
 
@@ -405,7 +404,7 @@ export function QRStudio() {
     const exportCanvas = document.createElement("canvas");
     renderCanvas(exportCanvas, 2048);
     const link = document.createElement("a");
-    link.download = `mixed-qr-${seed}.png`;
+    link.download = `mixed-qr-${Date.now()}.png`;
     link.href = exportCanvas.toDataURL("image/png");
     link.click();
   };
@@ -425,14 +424,13 @@ export function QRStudio() {
     let logoBottomMod = -1;
 
     if (logoSrc) {
-      const logoModules = Math.ceil((logoSizePercent / 100) * moduleCount);
+      const logoModules = (logoSizePercent / 100) * moduleCount;
       const center = moduleCount / 2;
       const half = logoModules / 2;
-      const margin = 1;
-      logoLeftMod = Math.floor(center - half) - margin;
-      logoRightMod = Math.ceil(center + half) + margin;
-      logoTopMod = Math.floor(center - half) - margin;
-      logoBottomMod = Math.ceil(center + half) + margin;
+      logoLeftMod = Math.floor(center - half);
+      logoRightMod = Math.ceil(center + half) - 1;
+      logoTopMod = Math.floor(center - half);
+      logoBottomMod = Math.ceil(center + half) - 1;
     }
 
     // Group rects by color
@@ -478,7 +476,7 @@ export function QRStudio() {
       const cy = (svgSize / 2).toFixed(2);
       const lx = (svgSize / 2 - parseFloat(logoPixelSize) / 2).toFixed(2);
       const ly = (svgSize / 2 - parseFloat(logoPixelSize) / 2).toFixed(2);
-      const pad = (modSize * 0.8).toFixed(2);
+      const pad = (modSize * 0.25).toFixed(2);
 
       if (logoBacking === "circle") {
         const radius = ((parseFloat(logoPixelSize) + parseFloat(pad)) / 2).toFixed(2);
@@ -487,7 +485,7 @@ export function QRStudio() {
         const bSize = (parseFloat(logoPixelSize) + parseFloat(pad)).toFixed(2);
         const bx = (parseFloat(lx) - parseFloat(pad) / 2).toFixed(2);
         const by = (parseFloat(ly) - parseFloat(pad) / 2).toFixed(2);
-        const rx = (parseFloat(bSize) * 0.25).toFixed(2);
+        const rx = (parseFloat(bSize) * 0.22).toFixed(2);
         logoXml += `<rect x="${bx}" y="${by}" width="${bSize}" height="${bSize}" rx="${rx}" fill="${logoBackingColor}" />`;
       } else if (logoBacking === "square") {
         const bSize = (parseFloat(logoPixelSize) + parseFloat(pad)).toFixed(2);
@@ -509,7 +507,7 @@ export function QRStudio() {
     const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.download = `mixed-qr-${seed}.svg`;
+    link.download = `mixed-qr-${Date.now()}.svg`;
     link.href = url;
     link.click();
     URL.revokeObjectURL(url);
@@ -564,7 +562,7 @@ export function QRStudio() {
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/* Top Navigation */}
       <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold shadow-sm">
               <QrCode className="w-5 h-5" />
@@ -584,6 +582,14 @@ export function QRStudio() {
 
           <div className="flex items-center gap-2">
             <button
+              onClick={shuffleColors}
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-border hover:bg-secondary text-xs font-medium transition"
+              title="Shuffle Mixed Palette"
+            >
+              <Shuffle className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Shuffle</span>
+            </button>
+            <button
               onClick={toggleTheme}
               className="h-9 w-9 rounded-md border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition"
               title="Toggle Dark/Light Mode"
@@ -594,11 +600,12 @@ export function QRStudio() {
         </div>
       </header>
 
-      {/* Main Grid */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 md:py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Controls Column */}
-          <div className="lg:col-span-7 space-y-6">
+      {/* Main 3-Column Layout */}
+      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-6 md:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          {/* COLUMN 1 (LEFT): Content & Colors (lg:col-span-4) */}
+          <div className="lg:col-span-4 space-y-6">
             {/* CARD 1: Content & URL */}
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
@@ -645,13 +652,13 @@ export function QRStudio() {
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Choose 2 or more colors. Modules are randomly distributed, while finder patterns use the darkest color for scan reliability.
+                Data modules are randomly distributed among palette colors. The darkest color is locked to finder patterns for rapid camera scan focus.
               </p>
 
               {/* Presets */}
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Preset Palettes</label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {PRESETS.map((p) => (
                     <button
                       key={p.name}
@@ -662,12 +669,12 @@ export function QRStudio() {
                         {p.colors.map((c, i) => (
                           <div
                             key={i}
-                            className="w-3 h-3 rounded-full border border-background"
+                            className="w-2.5 h-2.5 rounded-full border border-background"
                             style={{ backgroundColor: c }}
                           />
                         ))}
                       </div>
-                      <span>{p.name}</span>
+                      <span className="text-[11px]">{p.name}</span>
                     </button>
                   ))}
                 </div>
@@ -685,7 +692,7 @@ export function QRStudio() {
                       type="color"
                       value={bgColor}
                       onChange={(e) => setBgColor(e.target.value)}
-                      className="w-10 h-9 rounded cursor-pointer"
+                      className="w-9 h-9 rounded cursor-pointer"
                     />
                     <input
                       type="text"
@@ -697,37 +704,59 @@ export function QRStudio() {
                   </div>
                 </div>
 
+                {/* Module Corner Style */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground block">Corner Style</label>
+                  <select
+                    value={moduleShape}
+                    onChange={(e: any) => setModuleShape(e.target.value)}
+                    className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs"
+                  >
+                    <option value="square">Clean Squares (Default)</option>
+                    <option value="rounded">Smooth Rounded (35%)</option>
+                    <option value="dots">Circular Dots</option>
+                  </select>
+                </div>
+
                 {/* Module Colors */}
-                <div className="sm:col-span-2 space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground flex justify-between">
-                    <span>Module Colors ({palette.length} active)</span>
-                    <span className="text-[11px] text-muted-foreground">Darkest auto-used for corners</span>
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="sm:col-span-2 space-y-2 pt-1 border-t border-border/50">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-muted-foreground">
+                      Module Colors ({palette.length} active)
+                    </label>
+                    <button
+                      onClick={shuffleColors}
+                      className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium"
+                    >
+                      <Shuffle className="w-3 h-3" />
+                      Shuffle Pattern
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {palette.map((color, idx) => {
                       const isDarkest = color === darkestColor;
                       return (
                         <div
                           key={idx}
-                          className="flex items-center gap-2 p-2 rounded-lg border border-border bg-secondary/30"
+                          className="flex items-center gap-1.5 p-1.5 rounded-lg border border-border bg-secondary/30"
                         >
                           <input
                             type="color"
                             value={color}
                             onChange={(e) => updateColor(idx, e.target.value)}
-                            className="w-8 h-8 rounded cursor-pointer shrink-0"
+                            className="w-7 h-7 rounded cursor-pointer shrink-0"
                           />
                           <input
                             type="text"
                             value={color}
                             onChange={(e) => updateColor(idx, e.target.value)}
-                            className="h-8 px-2 rounded border border-input bg-background font-mono text-xs uppercase w-24"
+                            className="h-7 px-2 rounded border border-input bg-background font-mono text-[11px] uppercase w-20"
                             maxLength={7}
                           />
                           <div className="flex-1">
                             {isDarkest && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                                Finder Lock
+                              <span className="text-[9px] px-1 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                                Lock
                               </span>
                             )}
                           </div>
@@ -737,7 +766,7 @@ export function QRStudio() {
                               className="text-muted-foreground hover:text-destructive p-1 transition"
                               title="Remove color"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3 h-3" />
                             </button>
                           )}
                         </div>
@@ -747,256 +776,15 @@ export function QRStudio() {
                 </div>
               </div>
             </div>
-
-            {/* CARD 3: Center Logo */}
-            <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-primary" />
-                  <h2 className="font-semibold text-sm">Center Logo (Optional)</h2>
-                </div>
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
-                  {logoSrc ? "Active" : "None"}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Upload a logo to embed in the center. Center modules are cleared with a safety margin for Error Correction H scan safety.
-              </p>
-
-              {/* Upload Dropzone */}
-              {!logoSrc ? (
-                <label className="border-2 border-dashed border-border hover:border-primary/50 transition rounded-lg p-5 flex flex-col items-center justify-center gap-2 cursor-pointer bg-secondary/20 group">
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                    onChange={handleLogoUpload}
-                    className="sr-only"
-                  />
-                  <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground group-hover:text-primary transition">
-                    <Upload className="w-4 h-4" />
-                  </div>
-                  <div className="text-xs font-medium">Click or drag & drop image logo</div>
-                  <div className="text-[11px] text-muted-foreground">PNG, JPG, SVG, WebP</div>
-                </label>
-              ) : (
-                <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-secondary/20">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={logoSrc}
-                      alt="Logo"
-                      className="w-10 h-10 object-contain rounded border border-border bg-white p-0.5"
-                    />
-                    <div>
-                      <div className="text-xs font-medium truncate max-w-[180px]">{logoName}</div>
-                      <div className="text-[11px] text-muted-foreground">Center aligned</div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={removeLogo}
-                    className="text-xs px-2.5 py-1 rounded-md border border-destructive/40 text-destructive hover:bg-destructive/10 transition"
-                  >
-                    Remove
-                  </button>
-                </div>
-              )}
-
-              {/* Logo Controls */}
-              {logoSrc && (
-                <div className="space-y-4 pt-2 border-t border-border">
-                  <div>
-                    <div className="flex justify-between text-xs font-medium mb-1.5">
-                      <span className="text-muted-foreground">Logo Size (% of QR width)</span>
-                      <span className="font-mono">{logoSizePercent}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={10}
-                      max={25}
-                      step={1}
-                      value={logoSizePercent}
-                      onChange={(e) => setLogoSizePercent(Number(e.target.value))}
-                    />
-                    <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                      <span>10% (Safe)</span>
-                      <span>18% (Recommended)</span>
-                      <span>25% (Max Level H)</span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground block">Backing Plate</label>
-                      <select
-                        value={logoBacking}
-                        onChange={(e: any) => setLogoBacking(e.target.value)}
-                        className="w-full h-9 px-3 rounded-md border border-input bg-background text-xs"
-                      >
-                        <option value="rounded">Rounded Square</option>
-                        <option value="circle">Circle</option>
-                        <option value="square">Square</option>
-                        <option value="none">None (Transparent)</option>
-                      </select>
-                    </div>
-
-                    {logoBacking !== "none" && (
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground flex justify-between">
-                          <span>Backing Color</span>
-                          <span className="font-mono text-xs uppercase">{logoBackingColor}</span>
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={logoBackingColor}
-                            onChange={(e) => setLogoBackingColor(e.target.value)}
-                            className="w-9 h-9 rounded cursor-pointer"
-                          />
-                          <input
-                            type="text"
-                            value={logoBackingColor}
-                            onChange={(e) => setLogoBackingColor(e.target.value)}
-                            className="h-9 px-3 rounded-md border border-input bg-background font-mono text-xs uppercase flex-1"
-                            maxLength={7}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* CARD 4: Styling & Random Seed */}
-            <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-primary" />
-                  <h2 className="font-semibold text-sm">Random Seed & Module Shapes</h2>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground flex justify-between">
-                    <span>Seed</span>
-                    <span className="text-[11px] text-muted-foreground">Reproducible</span>
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={seed}
-                      onChange={(e) => setSeed(e.target.value)}
-                      className="h-9 px-3 rounded-md border border-input bg-background font-mono text-xs flex-1"
-                      maxLength={12}
-                    />
-                    <button
-                      onClick={shuffleSeed}
-                      className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs font-medium transition shrink-0"
-                    >
-                      <Shuffle className="w-3.5 h-3.5" />
-                      Shuffle
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground block">Module Corner Style</label>
-                  <select
-                    value={moduleShape}
-                    onChange={(e: any) => setModuleShape(e.target.value)}
-                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-xs"
-                  >
-                    <option value="square">Clean Squares (Default)</option>
-                    <option value="rounded">Smooth Rounded (35%)</option>
-                    <option value="dots">Circular Dots</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* CARD 5: Print Sheet PDF */}
-            <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Printer className="w-4 h-4 text-primary" />
-                  <h2 className="font-semibold text-sm">A4 Print Sheet Generator (PDF)</h2>
-                </div>
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
-                  Client-Side
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Evenly arranges multiple high-resolution codes on standard A4 paper ready for printing and cutting.
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Code Size (mm)</label>
-                  <input
-                    type="number"
-                    min={20}
-                    max={150}
-                    value={pdfCodeSize}
-                    onChange={(e) => setPdfCodeSize(Number(e.target.value))}
-                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-xs font-mono"
-                  />
-                  <span className="text-[10px] text-muted-foreground">Default: 60mm</span>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Columns</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={6}
-                    value={pdfColumns}
-                    onChange={(e) => setPdfColumns(Number(e.target.value))}
-                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-xs font-mono"
-                  />
-                  <span className="text-[10px] text-muted-foreground">Default: 3 cols</span>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Total Codes</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={48}
-                    value={pdfCount}
-                    onChange={(e) => setPdfCount(Number(e.target.value))}
-                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-xs font-mono"
-                  />
-                  <span className="text-[10px] text-muted-foreground">Default: 12 codes</span>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border">
-                <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={pdfCutLines}
-                    onChange={(e) => setPdfCutLines(e.target.checked)}
-                    className="rounded border-input text-primary"
-                  />
-                  <span>Include subtle cut guidelines & labels</span>
-                </label>
-                <button
-                  onClick={handleExportPdf}
-                  disabled={isExportingPdf}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition shadow-sm disabled:opacity-50"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  {isExportingPdf ? "Generating..." : "Export A4 Print PDF"}
-                </button>
-              </div>
-            </div>
           </div>
 
-          {/* Right Column: Sticky Preview & Actions */}
-          <div className="lg:col-span-5 space-y-5 lg:sticky lg:top-20">
+          {/* COLUMN 2 (CENTER): Live Preview & Quick Actions (lg:col-span-4) */}
+          <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-20">
             <div className="rounded-xl border border-border bg-card p-5 shadow-md space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-border">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <h3 className="font-semibold text-sm">Live Preview</h3>
+                  <h3 className="font-semibold text-sm">QR Code Preview</h3>
                 </div>
                 <div
                   className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -1011,16 +799,16 @@ export function QRStudio() {
                     </>
                   ) : (
                     <>
-                      <AlertTriangle className="w-3 h-3" /> Check Warnings
+                      <AlertTriangle className="w-3 h-3" /> Warning
                     </>
                   )}
                 </div>
               </div>
 
               {/* Canvas Frame */}
-              <div className="py-4 flex flex-col items-center justify-center">
+              <div className="py-2 flex flex-col items-center justify-center">
                 <div className="p-3 rounded-2xl border border-border shadow-inner bg-card flex items-center justify-center max-w-full">
-                  <canvas ref={canvasRef} className="max-w-full h-auto rounded-lg shadow-sm w-[340px] h-[340px]" />
+                  <canvas ref={canvasRef} className="max-w-full h-auto rounded-lg shadow-sm w-[320px] h-[320px]" />
                 </div>
                 <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground font-mono">
                   <span>Level H (30%)</span>
@@ -1031,15 +819,52 @@ export function QRStudio() {
                 </div>
               </div>
 
+              {/* Action Buttons */}
+              <div className="space-y-2.5 pt-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={downloadPng}
+                    className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition shadow-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download PNG
+                  </button>
+                  <button
+                    onClick={downloadSvg}
+                    className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-md border border-input bg-background hover:bg-secondary text-sm font-medium transition"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download SVG
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                  <button
+                    onClick={shuffleColors}
+                    className="hover:text-foreground transition flex items-center gap-1 font-medium text-foreground"
+                  >
+                    <Shuffle className="w-3.5 h-3.5" />
+                    Shuffle Pattern
+                  </button>
+                  <button
+                    onClick={copyToClipboard}
+                    className="hover:text-foreground transition underline flex items-center gap-1"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? "Copied!" : "Copy to Clipboard"}
+                  </button>
+                </div>
+              </div>
+
               {/* Scan-Safety Diagnostics */}
               <div className="rounded-lg p-3 bg-secondary/30 border border-border space-y-1.5 text-xs">
                 <div className="flex items-center justify-between font-medium">
                   <span className="flex items-center gap-1.5">
                     <Info className="w-3.5 h-3.5 text-primary" />
-                    Scan-Safety Diagnostics
+                    Scan Safety Diagnostics
                   </span>
                   <span className={`font-mono font-semibold ${safetyReport.isSafe ? "text-emerald-500" : "text-amber-500"}`}>
-                    {safetyReport.isSafe ? "Safe to Scan" : "Attention Needed"}
+                    {safetyReport.isSafe ? "100% Safe" : "Attention"}
                   </span>
                 </div>
                 {safetyReport.warnings.length === 0 ? (
@@ -1062,50 +887,205 @@ export function QRStudio() {
                   </div>
                 )}
               </div>
-
-              {/* Action Buttons */}
-              <div className="space-y-2.5 pt-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={downloadPng}
-                    className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition shadow-sm"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download PNG
-                  </button>
-                  <button
-                    onClick={downloadSvg}
-                    className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-md border border-input bg-background hover:bg-secondary text-sm font-medium transition"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download SVG
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
-                  <span>PNG Resolution: 2048 x 2048px</span>
-                  <button
-                    onClick={copyToClipboard}
-                    className="hover:text-foreground transition underline flex items-center gap-1"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copied ? "Copied!" : "Copy to Clipboard"}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Pro Tip */}
-            <div className="p-4 rounded-xl border border-border/60 bg-card text-xs text-muted-foreground space-y-1.5">
-              <div className="font-medium text-foreground flex items-center gap-1.5">
-                <Info className="w-3.5 h-3.5 text-amber-500" />
-                Mixed Palette Guarantee
-              </div>
-              <p>
-                Finder patterns (3 corner squares) always use the darkest palette color regardless of shuffle. This guarantees immediate focus and scan reliability on all iOS and Android barcode scanners.
-              </p>
             </div>
           </div>
+
+          {/* COLUMN 3 (RIGHT): Center Logo & Print Sheet (lg:col-span-4) */}
+          <div className="lg:col-span-4 space-y-6">
+            {/* CARD 3: Center Logo */}
+            <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-primary" />
+                  <h2 className="font-semibold text-sm">Center Logo (Optional)</h2>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
+                  {logoSrc ? "Active" : "None"}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Upload a logo to embed in the center. Tight module clearance keeps the QR dense with no awkward gaps.
+              </p>
+
+              {/* Upload Dropzone */}
+              {!logoSrc ? (
+                <label className="border-2 border-dashed border-border hover:border-primary/50 transition rounded-lg p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer bg-secondary/20 group">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                    onChange={handleLogoUpload}
+                    className="sr-only"
+                  />
+                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground group-hover:text-primary transition">
+                    <Upload className="w-4 h-4" />
+                  </div>
+                  <div className="text-xs font-medium">Click or drag & drop logo</div>
+                  <div className="text-[11px] text-muted-foreground">PNG, JPG, SVG, WebP</div>
+                </label>
+              ) : (
+                <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-secondary/20">
+                  <div className="flex items-center gap-2.5">
+                    <img
+                      src={logoSrc}
+                      alt="Logo"
+                      className="w-9 h-9 object-contain rounded border border-border bg-white p-0.5"
+                    />
+                    <div>
+                      <div className="text-xs font-medium truncate max-w-[140px]">{logoName}</div>
+                      <div className="text-[10px] text-muted-foreground">Centered tightly</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={removeLogo}
+                    className="text-xs px-2 py-1 rounded-md border border-destructive/40 text-destructive hover:bg-destructive/10 transition"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+
+              {/* Logo Controls */}
+              {logoSrc && (
+                <div className="space-y-3 pt-1 border-t border-border">
+                  <div>
+                    <div className="flex justify-between text-xs font-medium mb-1.5">
+                      <span className="text-muted-foreground">Logo Size (% of QR width)</span>
+                      <span className="font-mono">{logoSizePercent}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={10}
+                      max={25}
+                      step={1}
+                      value={logoSizePercent}
+                      onChange={(e) => setLogoSizePercent(Number(e.target.value))}
+                    />
+                    <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                      <span>10% (Safe)</span>
+                      <span>18% (Recommended)</span>
+                      <span>25% (Max)</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground block">Backing Plate</label>
+                      <select
+                        value={logoBacking}
+                        onChange={(e: any) => setLogoBacking(e.target.value)}
+                        className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs"
+                      >
+                        <option value="rounded">Rounded Square</option>
+                        <option value="circle">Circle</option>
+                        <option value="square">Square</option>
+                        <option value="none">None (Transparent)</option>
+                      </select>
+                    </div>
+
+                    {logoBacking !== "none" && (
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground flex justify-between">
+                          <span>Backing Color</span>
+                          <span className="font-mono text-xs uppercase">{logoBackingColor}</span>
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="color"
+                            value={logoBackingColor}
+                            onChange={(e) => setLogoBackingColor(e.target.value)}
+                            className="w-8 h-8 rounded cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={logoBackingColor}
+                            onChange={(e) => setLogoBackingColor(e.target.value)}
+                            className="h-8 px-2 rounded-md border border-input bg-background font-mono text-xs uppercase flex-1"
+                            maxLength={7}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* CARD 4: Print Sheet PDF */}
+            <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Printer className="w-4 h-4 text-primary" />
+                  <h2 className="font-semibold text-sm">A4 Print Sheet Generator (PDF)</h2>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
+                  Client-Side
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Evenly arranges multiple high-resolution codes on standard A4 paper ready for printing and cutting.
+              </p>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Size (mm)</label>
+                  <input
+                    type="number"
+                    min={20}
+                    max={150}
+                    value={pdfCodeSize}
+                    onChange={(e) => setPdfCodeSize(Number(e.target.value))}
+                    className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs font-mono"
+                  />
+                  <span className="text-[10px] text-muted-foreground">Def: 60mm</span>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Columns</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={6}
+                    value={pdfColumns}
+                    onChange={(e) => setPdfColumns(Number(e.target.value))}
+                    className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs font-mono"
+                  />
+                  <span className="text-[10px] text-muted-foreground">Def: 3 cols</span>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Codes</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={48}
+                    value={pdfCount}
+                    onChange={(e) => setPdfCount(Number(e.target.value))}
+                    className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs font-mono"
+                  />
+                  <span className="text-[10px] text-muted-foreground">Def: 12</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 pt-2 border-t border-border">
+                <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={pdfCutLines}
+                    onChange={(e) => setPdfCutLines(e.target.checked)}
+                    className="rounded border-input text-primary"
+                  />
+                  <span>Include subtle cut guidelines & labels</span>
+                </label>
+                <button
+                  onClick={handleExportPdf}
+                  disabled={isExportingPdf}
+                  className="w-full inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition shadow-sm disabled:opacity-50"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  {isExportingPdf ? "Generating..." : "Export A4 Print PDF"}
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
       </main>
     </div>
