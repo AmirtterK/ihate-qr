@@ -1119,12 +1119,12 @@ export function QRStudio() {
               </div>
             </div>
 
-            {/* CARD 2: Center Logo (Optional) */}
+            {/* CARD 2: Center Logo */}
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Layers className="w-4 h-4 text-primary" />
-                  <h2 className="font-semibold text-sm">Center Logo (Optional)</h2>
+                  <h2 className="font-semibold text-sm">Center Logo</h2>
                 </div>
                 <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
                   {logoSrc ? "Active" : "None"}
@@ -1176,7 +1176,7 @@ export function QRStudio() {
                 <div className="space-y-3 pt-1 border-t border-border">
                   <div>
                     <div className="flex justify-between text-xs font-medium mb-1.5">
-                      <span className="text-muted-foreground">Logo Size (% of QR width)</span>
+                      <span className="text-muted-foreground">Logo Size</span>
                       <span className="font-mono">{logoSizePercent}%</span>
                     </div>
                     <input
@@ -1188,9 +1188,9 @@ export function QRStudio() {
                       onChange={(e) => setLogoSizePercent(Number(e.target.value))}
                     />
                     <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                      <span>10% (Safe)</span>
-                      <span>18% (Recommended)</span>
-                      <span>25% (Max)</span>
+                      <span>10%</span>
+                      <span>18%</span>
+                      <span>25%</span>
                     </div>
                   </div>
 
@@ -1205,7 +1205,7 @@ export function QRStudio() {
                         <option value="rounded">Rounded Square</option>
                         <option value="circle">Circle</option>
                         <option value="square">Square</option>
-                        <option value="none">None (Transparent)</option>
+                        <option value="none">None</option>
                       </select>
                     </div>
 
@@ -1368,10 +1368,10 @@ export function QRStudio() {
                     onChange={(e: any) => setFinderShape(e.target.value)}
                     className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                   >
-                    <option value="square">Squares (Classic)</option>
-                    <option value="circle">Circles (Soft Rings)</option>
-                    <option value="leaf">Leaf (Organic)</option>
-                    <option value="chamfer">Chamfer (Cyber)</option>
+                    <option value="square">Squares</option>
+                    <option value="circle">Circles</option>
+                    <option value="leaf">Leaf</option>
+                    <option value="chamfer">Chamfer</option>
                   </select>
                 </div>
 
@@ -1383,12 +1383,12 @@ export function QRStudio() {
                     onChange={(e: any) => setModuleShape(e.target.value)}
                     className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                   >
-                    <option value="square">Squares (Classic)</option>
+                    <option value="square">Squares</option>
                     <option value="rounded">Rounded</option>
                     <option value="dots">Dots</option>
                     <option value="diamond">Diamonds</option>
-                    <option value="fluid">Fluid (Ribbons)</option>
-                    <option value="liquid">Liquid (Organic Blobs)</option>
+                    <option value="fluid">Fluid</option>
+                    <option value="liquid">Liquid</option>
                   </select>
                 </div>
 
@@ -1400,7 +1400,7 @@ export function QRStudio() {
                     onChange={(e: any) => setColorMode(e.target.value)}
                     className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                   >
-                    <option value="scatter">Scattered (Mixed Pixels)</option>
+                    <option value="scatter">Scattered</option>
                     <option value="gradient">Linear Gradient</option>
                     <option value="radial">Radial Glow</option>
                   </select>
@@ -1433,7 +1433,7 @@ export function QRStudio() {
                 <div className="sm:col-span-2 space-y-2 pt-1 border-t border-border/50">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-medium text-muted-foreground">
-                      Module Colors ({palette.length} active)
+                      Module Colors
                     </label>
                     <button
                       onClick={shuffleColors}
