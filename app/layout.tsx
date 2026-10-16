@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "Awesome QR",
+  title: "ihate-qr",
   description: "Custom styled mixed-palette QR code generator",
   icons: {
     icon: "/icon.svg",

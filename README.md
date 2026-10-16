@@ -1,4 +1,4 @@
-# Awesome QR
+# ihate-qr
 
 > Modern, scan-safe styled QR code generator built with **Next.js 14**, **React 18**, **TypeScript**, and **Tailwind CSS**.
 
