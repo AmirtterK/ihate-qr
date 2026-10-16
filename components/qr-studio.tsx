@@ -29,16 +29,16 @@ interface Preset {
   colors: string[];
   bg: string;
   finderShape?: "square" | "circle" | "leaf" | "chamfer";
-  moduleShape?: "square" | "rounded" | "dots" | "diamond" | "fluid";
+  moduleShape?: "square" | "rounded" | "dots" | "diamond" | "fluid" | "liquid";
   colorMode?: "scatter" | "gradient" | "radial";
 }
 
 const PRESETS: Preset[] = [
   { name: "Crimson & Noir", colors: ["#E11D48", "#18181B"], bg: "#FFFFFF", finderShape: "square", moduleShape: "square", colorMode: "scatter" },
   { name: "Cyber Neon", colors: ["#06B6D4", "#D946EF", "#3B82F6"], bg: "#09090B", finderShape: "chamfer", moduleShape: "fluid", colorMode: "gradient" },
-  { name: "Zen Bamboo", colors: ["#16A34A", "#064E3B"], bg: "#FBF9F5", finderShape: "leaf", moduleShape: "fluid", colorMode: "gradient" },
+  { name: "Zen Bamboo", colors: ["#16A34A", "#064E3B"], bg: "#FBF9F5", finderShape: "leaf", moduleShape: "liquid", colorMode: "gradient" },
   { name: "Sunset Gold", colors: ["#F59E0B", "#EA580C", "#991B1B"], bg: "#FFFFFF", finderShape: "circle", moduleShape: "diamond", colorMode: "radial" },
-  { name: "Ocean Breeze", colors: ["#0284C7", "#0F172A"], bg: "#FFFFFF", finderShape: "circle", moduleShape: "rounded", colorMode: "gradient" },
+  { name: "Ocean Breeze", colors: ["#0284C7", "#0F172A"], bg: "#FFFFFF", finderShape: "circle", moduleShape: "liquid", colorMode: "gradient" },
   { name: "Royal Purple", colors: ["#9333EA", "#3B0764"], bg: "#FFFFFF", finderShape: "leaf", moduleShape: "dots", colorMode: "gradient" },
   { name: "Monochrome Classic", colors: ["#09090B", "#52525B"], bg: "#FFFFFF", finderShape: "square", moduleShape: "square", colorMode: "scatter" },
 ];
@@ -329,7 +329,7 @@ export function QRStudio() {
   const [bgColor, setBgColor] = useState("#FFFFFF");
   const [seed, setSeed] = useState("48291");
   const [finderShape, setFinderShape] = useState<"square" | "circle" | "leaf" | "chamfer">("square");
-  const [moduleShape, setModuleShape] = useState<"square" | "rounded" | "dots" | "diamond" | "fluid">("square");
+  const [moduleShape, setModuleShape] = useState<"square" | "rounded" | "dots" | "diamond" | "fluid" | "liquid">("square");
   const [colorMode, setColorMode] = useState<"scatter" | "gradient" | "radial">("scatter");
 
   // Logo state
@@ -596,13 +596,30 @@ export function QRStudio() {
             const hasLeft = isDataCell(r, c - 1);
             const hasRight = isDataCell(r, c + 1);
 
-            const rad = modulePixelSize * 0.42;
+            // Sleek connected ribbons with crisp rounded joints
+            const rad = modulePixelSize * 0.32;
             const tl = !hasTop && !hasLeft ? rad : 0;
             const tr = !hasTop && !hasRight ? rad : 0;
             const br = !hasBottom && !hasRight ? rad : 0;
             const bl = !hasBottom && !hasLeft ? rad : 0;
 
             drawRoundRectPath(ctx, x, y, modulePixelSize + 0.1, modulePixelSize + 0.1, tl, tr, br, bl);
+            ctx.fill();
+          } else if (moduleShape === "liquid") {
+            const hasTop = isDataCell(r - 1, c);
+            const hasBottom = isDataCell(r + 1, c);
+            const hasLeft = isDataCell(r, c - 1);
+            const hasRight = isDataCell(r, c + 1);
+
+            // Organic liquid droplets: full 50% radius turns isolated cells into circular droplets
+            // and connected clusters into molten pill capsules & curved liquid blobs
+            const rad = modulePixelSize * 0.5;
+            const tl = !hasTop && !hasLeft ? rad : 0;
+            const tr = !hasTop && !hasRight ? rad : 0;
+            const br = !hasBottom && !hasRight ? rad : 0;
+            const bl = !hasBottom && !hasLeft ? rad : 0;
+
+            drawRoundRectPath(ctx, x, y, modulePixelSize + 0.15, modulePixelSize + 0.15, tl, tr, br, bl);
             ctx.fill();
           }
         }
@@ -888,7 +905,8 @@ export function QRStudio() {
           const hasLeft = isDataCell(r, c - 1);
           const hasRight = isDataCell(r, c + 1);
 
-          const rad = modSize * 0.42;
+          // Sleek connected ribbons
+          const rad = modSize * 0.32;
           const tl = !hasTop && !hasLeft ? rad : 0;
           const tr = !hasTop && !hasRight ? rad : 0;
           const br = !hasBottom && !hasRight ? rad : 0;
@@ -899,6 +917,30 @@ export function QRStudio() {
             (r + quietZone) * modSize,
             modSize + 0.05,
             modSize + 0.05,
+            tl,
+            tr,
+            br,
+            bl
+          );
+          modulesXml += `<path d="${p}" ${fillAttr} />`;
+        } else if (moduleShape === "liquid") {
+          const hasTop = isDataCell(r - 1, c);
+          const hasBottom = isDataCell(r + 1, c);
+          const hasLeft = isDataCell(r, c - 1);
+          const hasRight = isDataCell(r, c + 1);
+
+          // Organic liquid droplets & molten blobs (50% radius)
+          const rad = modSize * 0.5;
+          const tl = !hasTop && !hasLeft ? rad : 0;
+          const tr = !hasTop && !hasRight ? rad : 0;
+          const br = !hasBottom && !hasRight ? rad : 0;
+          const bl = !hasBottom && !hasLeft ? rad : 0;
+
+          const p = getSvgRoundedRectPath(
+            (c + quietZone) * modSize,
+            (r + quietZone) * modSize,
+            modSize + 0.06,
+            modSize + 0.06,
             tl,
             tr,
             br,
@@ -1341,11 +1383,12 @@ export function QRStudio() {
                     onChange={(e: any) => setModuleShape(e.target.value)}
                     className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                   >
-                    <option value="square">Squares</option>
+                    <option value="square">Squares (Classic)</option>
                     <option value="rounded">Rounded</option>
                     <option value="dots">Dots</option>
                     <option value="diamond">Diamonds</option>
-                    <option value="fluid">Fluid Ribbons</option>
+                    <option value="fluid">Fluid (Ribbons)</option>
+                    <option value="liquid">Liquid (Organic Blobs)</option>
                   </select>
                 </div>
 
