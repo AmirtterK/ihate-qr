@@ -44,7 +44,7 @@ export function QRStudio() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [copied, setCopied] = useState(false);
 
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Normalize URL with auto-prefix
   const normalizedUrl = useMemo(() => {

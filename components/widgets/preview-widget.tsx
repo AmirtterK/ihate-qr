@@ -5,7 +5,7 @@ import { Download, Shuffle, Copy, Check, CheckCircle2, AlertTriangle } from "luc
 import { SafetyReport } from "@/lib/qr-types";
 
 interface PreviewWidgetProps {
-  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  canvasRef: React.RefObject<HTMLCanvasElement>;
   safetyReport: SafetyReport;
   onDownloadPng: () => void;
   onDownloadSvg: () => void;
