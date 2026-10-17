@@ -24,8 +24,8 @@ import { LogoWidget } from "@/components/widgets/logo-widget";
 
 export function QRStudio() {
   // Inputs
-  const [url, setUrl] = useState("https://github.com");
-  const [palette, setPalette] = useState<string[]>(["#E11D48", "#18181B"]);
+  const [url, setUrl] = useState("");
+  const [palette, setPalette] = useState<string[]>(["#000000"]);
   const [bgColor, setBgColor] = useState("#FFFFFF");
   const [seed, setSeed] = useState("48291");
   const [finderShape, setFinderShape] = useState<FinderShape>("square");
