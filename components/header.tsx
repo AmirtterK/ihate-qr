@@ -14,11 +14,11 @@ export function Header({ theme, onToggleTheme, onShuffle }: HeaderProps) {
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur-md">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="relative h-10 w-10 rounded-xl overflow-hidden shadow-sm ring-1 ring-border bg-white flex items-center justify-center flex-shrink-0 transition-transform hover:scale-105">
+          <div className="relative h-10 w-10 flex items-center justify-center flex-shrink-0 transition-transform hover:scale-105">
             <img
               src="/logo.png"
               alt="ihate-qr logo"
-              className="w-full h-full object-contain p-0.5"
+              className="w-full h-full object-contain"
             />
           </div>
           <div>
