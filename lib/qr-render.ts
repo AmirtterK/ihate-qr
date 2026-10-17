@@ -3,6 +3,9 @@ import { FinderShape, ModuleShape, ColorMode, LogoBacking } from "@/lib/qr-types
 
 // Helper: Hex to RGB
 export function hexToRgb(hex: string): [number, number, number] {
+  if (hex.toLowerCase() === "transparent") {
+    return [255, 255, 255];
+  }
   let cleaned = hex.replace("#", "").trim();
   if (cleaned.length === 3) {
     cleaned = cleaned.split("").map((c) => c + c).join("");
@@ -128,6 +131,8 @@ export function drawFinderEye(
   const cx = originX + outerSize / 2;
   const cy = originY + outerSize / 2;
 
+  const isTransparent = bgColor.toLowerCase() === "transparent";
+
   ctx.save();
 
   if (shape === "circle") {
@@ -136,10 +141,19 @@ export function drawFinderEye(
     ctx.arc(cx, cy, outerSize / 2, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = bgColor;
-    ctx.beginPath();
-    ctx.arc(cx, cy, innerSize / 2, 0, Math.PI * 2);
-    ctx.fill();
+    if (isTransparent) {
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.beginPath();
+      ctx.arc(cx, cy, innerSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = bgColor;
+      ctx.beginPath();
+      ctx.arc(cx, cy, innerSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     ctx.fillStyle = color;
     ctx.beginPath();
@@ -164,9 +178,17 @@ export function drawFinderEye(
     drawRoundRectPath(ctx, originX, originY, outerSize, outerSize, tlO, trO, brO, blO);
     ctx.fill();
 
-    ctx.fillStyle = bgColor;
-    drawRoundRectPath(ctx, originX + innerOffset, originY + innerOffset, innerSize, innerSize, tlI, trI, brI, blI);
-    ctx.fill();
+    if (isTransparent) {
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-out";
+      drawRoundRectPath(ctx, originX + innerOffset, originY + innerOffset, innerSize, innerSize, tlI, trI, brI, blI);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = bgColor;
+      drawRoundRectPath(ctx, originX + innerOffset, originY + innerOffset, innerSize, innerSize, tlI, trI, brI, blI);
+      ctx.fill();
+    }
 
     ctx.fillStyle = color;
     drawRoundRectPath(ctx, originX + pupilOffset, originY + pupilOffset, pupilSize, pupilSize, tlP, trP, brP, blP);
@@ -193,9 +215,17 @@ export function drawFinderEye(
     chamferPath(originX, originY, outerSize, chOut);
     ctx.fill();
 
-    ctx.fillStyle = bgColor;
-    chamferPath(originX + innerOffset, originY + innerOffset, innerSize, chIn);
-    ctx.fill();
+    if (isTransparent) {
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-out";
+      chamferPath(originX + innerOffset, originY + innerOffset, innerSize, chIn);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = bgColor;
+      chamferPath(originX + innerOffset, originY + innerOffset, innerSize, chIn);
+      ctx.fill();
+    }
 
     ctx.fillStyle = color;
     chamferPath(originX + pupilOffset, originY + pupilOffset, pupilSize, chPup);
@@ -203,8 +233,14 @@ export function drawFinderEye(
   } else {
     ctx.fillStyle = color;
     ctx.fillRect(originX, originY, outerSize, outerSize);
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(originX + innerOffset, originY + innerOffset, innerSize, innerSize);
+
+    if (isTransparent) {
+      ctx.clearRect(originX + innerOffset, originY + innerOffset, innerSize, innerSize);
+    } else {
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(originX + innerOffset, originY + innerOffset, innerSize, innerSize);
+    }
+
     ctx.fillStyle = color;
     ctx.fillRect(originX + pupilOffset, originY + pupilOffset, pupilSize, pupilSize);
   }
@@ -230,11 +266,24 @@ export function getFinderEyeSvg(
 
   const cx = (originX + 3.5 * modSize).toFixed(2);
   const cy = (originY + 3.5 * modSize).toFixed(2);
+  const isTransparent = bgColor.toLowerCase() === "transparent";
 
   if (shape === "circle") {
     const rOut = (3.5 * modSize).toFixed(2);
     const rIn = (2.5 * modSize).toFixed(2);
     const rPup = (1.5 * modSize).toFixed(2);
+
+    if (isTransparent) {
+      const cNumX = originX + 3.5 * modSize;
+      const cNumY = originY + 3.5 * modSize;
+      const rONum = 3.5 * modSize;
+      const rINum = 2.5 * modSize;
+      return `
+        <path d="M ${cNumX} ${cNumY - rONum} A ${rONum} ${rONum} 0 1 0 ${cNumX} ${cNumY + rONum} A ${rONum} ${rONum} 0 1 0 ${cNumX} ${cNumY - rONum} Z M ${cNumX} ${cNumY - rINum} A ${rINum} ${rINum} 0 1 1 ${cNumX} ${cNumY + rINum} A ${rINum} ${rINum} 0 1 1 ${cNumX} ${cNumY - rINum} Z" fill="${color}" fill-rule="evenodd" />
+        <circle cx="${cx}" cy="${cy}" r="${rPup}" fill="${color}" />
+      `;
+    }
+
     return `
       <circle cx="${cx}" cy="${cy}" r="${rOut}" fill="${color}" />
       <circle cx="${cx}" cy="${cy}" r="${rIn}" fill="${bgColor}" />
@@ -259,6 +308,13 @@ export function getFinderEyeSvg(
     const pIn = getSvgRoundedRectPath(originX + innerOffset, originY + innerOffset, innerSize, innerSize, tlI, trI, brI, blI);
     const pPup = getSvgRoundedRectPath(originX + pupilOffset, originY + pupilOffset, pupilSize, pupilSize, tlP, trP, brP, blP);
 
+    if (isTransparent) {
+      return `
+        <path d="${pOut} ${pIn}" fill="${color}" fill-rule="evenodd" />
+        <path d="${pPup}" fill="${color}" />
+      `;
+    }
+
     return `
       <path d="${pOut}" fill="${color}" />
       <path d="${pIn}" fill="${bgColor}" />
@@ -266,12 +322,32 @@ export function getFinderEyeSvg(
     `;
   } else if (shape === "chamfer") {
     const ox = originX, oy = originY, sz = 7 * modSize;
+    const outerChamfer = `M ${(ox + 1.6*modSize).toFixed(2)} ${oy.toFixed(2)} L ${(ox + sz - 1.6*modSize).toFixed(2)} ${oy.toFixed(2)} L ${(ox + sz).toFixed(2)} ${(oy + 1.6*modSize).toFixed(2)} L ${(ox + sz).toFixed(2)} ${(oy + sz - 1.6*modSize).toFixed(2)} L ${(ox + sz - 1.6*modSize).toFixed(2)} ${(oy + sz).toFixed(2)} L ${(ox + 1.6*modSize).toFixed(2)} ${(oy + sz).toFixed(2)} L ${ox.toFixed(2)} ${(oy + sz - 1.6*modSize).toFixed(2)} L ${ox.toFixed(2)} ${(oy + 1.6*modSize).toFixed(2)} Z`;
+
+    if (isTransparent) {
+      const inX = originX + innerOffset;
+      const inY = originY + innerOffset;
+      const inR = modSize * 0.5;
+      const innerRectPath = getSvgRoundedRectPath(inX, inY, innerSize, innerSize, inR, inR, inR, inR);
+      return `
+        <path d="${outerChamfer} ${innerRectPath}" fill="${color}" fill-rule="evenodd" />
+        <rect x="${(originX + pupilOffset).toFixed(2)}" y="${(originY + pupilOffset).toFixed(2)}" width="${pupilSize.toFixed(2)}" height="${pupilSize.toFixed(2)}" rx="${(modSize*0.4).toFixed(2)}" fill="${color}" />
+      `;
+    }
+
     return `
       <polygon points="${(ox + 1.6*modSize).toFixed(2)},${oy.toFixed(2)} ${(ox + sz - 1.6*modSize).toFixed(2)},${oy.toFixed(2)} ${(ox + sz).toFixed(2)},${(oy + 1.6*modSize).toFixed(2)} ${(ox + sz).toFixed(2)},${(oy + sz - 1.6*modSize).toFixed(2)} ${(ox + sz - 1.6*modSize).toFixed(2)},${(oy + sz).toFixed(2)} ${(ox + 1.6*modSize).toFixed(2)},${(oy + sz).toFixed(2)} ${ox.toFixed(2)},${(oy + sz - 1.6*modSize).toFixed(2)} ${ox.toFixed(2)},${(oy + 1.6*modSize).toFixed(2)}" fill="${color}" />
       <rect x="${(originX + innerOffset).toFixed(2)}" y="${(originY + innerOffset).toFixed(2)}" width="${innerSize.toFixed(2)}" height="${innerSize.toFixed(2)}" rx="${(modSize*0.5).toFixed(2)}" fill="${bgColor}" />
       <rect x="${(originX + pupilOffset).toFixed(2)}" y="${(originY + pupilOffset).toFixed(2)}" width="${pupilSize.toFixed(2)}" height="${pupilSize.toFixed(2)}" rx="${(modSize*0.4).toFixed(2)}" fill="${color}" />
     `;
   } else {
+    if (isTransparent) {
+      return `
+        <path d="M ${originX.toFixed(2)} ${originY.toFixed(2)} h ${outerSize.toFixed(2)} v ${outerSize.toFixed(2)} h -${outerSize.toFixed(2)} Z M ${(originX + innerOffset).toFixed(2)} ${(originY + innerOffset).toFixed(2)} v ${innerSize.toFixed(2)} h ${innerSize.toFixed(2)} v -${innerSize.toFixed(2)} Z" fill="${color}" fill-rule="evenodd" />
+        <rect x="${(originX + pupilOffset).toFixed(2)}" y="${(originY + pupilOffset).toFixed(2)}" width="${pupilSize.toFixed(2)}" height="${pupilSize.toFixed(2)}" fill="${color}" />
+      `;
+    }
+
     return `
       <rect x="${originX.toFixed(2)}" y="${originY.toFixed(2)}" width="${outerSize.toFixed(2)}" height="${outerSize.toFixed(2)}" fill="${color}" />
       <rect x="${(originX + innerOffset).toFixed(2)}" y="${(originY + innerOffset).toFixed(2)}" width="${innerSize.toFixed(2)}" height="${innerSize.toFixed(2)}" fill="${bgColor}" />
@@ -326,9 +402,11 @@ export function renderQRToCanvas({
   const totalModules = moduleCount + quietZone * 2;
   const modulePixelSize = targetSize / totalModules;
 
-  // Fill background
-  ctx.fillStyle = bgColor;
-  ctx.fillRect(0, 0, targetSize, targetSize);
+  // Fill background if not transparent
+  if (bgColor.toLowerCase() !== "transparent") {
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, targetSize, targetSize);
+  }
 
   const rng = createRng(seed);
 
@@ -771,10 +849,11 @@ export function generateQRSvgString({
     logoXml += `<image href="${logoSrc}" x="${lx}" y="${ly}" width="${logoPixelSize}" height="${logoPixelSize}" />`;
   }
 
+  const bgRectXml = bgColor.toLowerCase() === "transparent" ? "" : `  <rect width="100%" height="100%" fill="${bgColor}" />\n`;
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgSize} ${svgSize}" width="${svgSize}" height="${svgSize}">
-  <rect width="100%" height="100%" fill="${bgColor}" />
-  ${defsXml}
+${bgRectXml}  ${defsXml}
   ${modulesXml}
   ${findersXml}
   ${logoXml}

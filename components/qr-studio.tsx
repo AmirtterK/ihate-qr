@@ -63,11 +63,12 @@ export function QRStudio() {
 
   // Determine the color with the highest contrast against the background (for finder eyes)
   const bestContrastColor = useMemo(() => {
-    if (palette.length === 0) return bgColor === "#FFFFFF" ? "#000000" : "#FFFFFF";
+    const effectiveBg = bgColor.toLowerCase() === "transparent" ? "#FFFFFF" : bgColor;
+    if (palette.length === 0) return effectiveBg === "#FFFFFF" ? "#000000" : "#FFFFFF";
     let best = palette[0];
     let maxRatio = -1;
     for (const color of palette) {
-      const ratio = getContrastRatio(color, bgColor);
+      const ratio = getContrastRatio(color, effectiveBg);
       if (ratio > maxRatio) {
         maxRatio = ratio;
         best = color;
@@ -79,15 +80,16 @@ export function QRStudio() {
   // Scan-Safety diagnostics
   const safetyReport: SafetyReport = useMemo(() => {
     const warnings: { type: "contrast" | "logo"; message: string; critical: boolean }[] = [];
+    const effectiveBg = bgColor.toLowerCase() === "transparent" ? "#FFFFFF" : bgColor;
 
     // Contrast check: each palette color against background
     palette.forEach((color, idx) => {
-      const ratio = getContrastRatio(color, bgColor);
+      const ratio = getContrastRatio(color, effectiveBg);
       if (ratio < 3.0) {
         warnings.push({
           type: "contrast",
           critical: true,
-          message: `Color ${idx + 1} (${color}) has low contrast (${ratio.toFixed(1)}:1) against background. Scanners may struggle.`,
+          message: `Color ${idx + 1} (${color}) has low contrast (${ratio.toFixed(1)}:1) against ${bgColor === "transparent" ? "light surfaces" : "background"}. Scanners may struggle.`,
         });
       } else if (ratio < 4.5) {
         warnings.push({
@@ -99,7 +101,7 @@ export function QRStudio() {
     });
 
     // Best contrast check (finders)
-    const finderRatio = getContrastRatio(bestContrastColor, bgColor);
+    const finderRatio = getContrastRatio(bestContrastColor, effectiveBg);
     if (finderRatio < 4.0) {
       warnings.push({
         type: "contrast",

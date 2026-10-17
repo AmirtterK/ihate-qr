@@ -134,24 +134,46 @@ export function StyleWidget({
 
         {/* Background Canvas */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground flex justify-between">
-            <span>Background Canvas</span>
-            <span className="font-mono text-xs uppercase text-foreground">{bgColor}</span>
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-muted-foreground">
+              Background Canvas
+            </label>
+            <button
+              type="button"
+              onClick={() => onBgColorChange(bgColor.toLowerCase() === "transparent" ? "#FFFFFF" : "transparent")}
+              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium transition border ${
+                bgColor.toLowerCase() === "transparent"
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "bg-secondary/60 text-muted-foreground hover:text-foreground border-border"
+              }`}
+            >
+              <span className="w-2.5 h-2.5 rounded-sm border border-current/30 bg-checkerboard inline-block shrink-0" />
+              Transparent
+            </button>
+          </div>
           <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={bgColor}
-              onChange={(e) => onBgColorChange(e.target.value)}
-              className="w-9 h-9 rounded cursor-pointer shrink-0"
-            />
-            <input
-              type="text"
-              value={bgColor}
-              onChange={(e) => onBgColorChange(e.target.value)}
-              className="h-9 px-2.5 rounded-md border border-input bg-background font-mono text-xs uppercase flex-1"
-              maxLength={7}
-            />
+            {bgColor.toLowerCase() === "transparent" ? (
+              <div className="flex items-center gap-2 w-full h-9 px-3 rounded-md border border-input bg-secondary/30 text-xs text-muted-foreground">
+                <span className="w-5 h-5 rounded border border-border bg-checkerboard shrink-0" />
+                <span className="font-mono text-xs">transparent (alpha: 0)</span>
+              </div>
+            ) : (
+              <>
+                <input
+                  type="color"
+                  value={bgColor}
+                  onChange={(e) => onBgColorChange(e.target.value)}
+                  className="w-9 h-9 rounded cursor-pointer shrink-0"
+                />
+                <input
+                  type="text"
+                  value={bgColor}
+                  onChange={(e) => onBgColorChange(e.target.value)}
+                  className="h-9 px-2.5 rounded-md border border-input bg-background font-mono text-xs uppercase flex-1"
+                  maxLength={7}
+                />
+              </>
+            )}
           </div>
         </div>
 

@@ -52,7 +52,9 @@ export function PreviewWidget({
       {/* Canvas Frame */}
       <div className="py-2 flex flex-col items-center justify-center">
         <div className="p-3 rounded-2xl border border-border shadow-inner bg-card flex items-center justify-center max-w-full">
-          <canvas ref={canvasRef} className="max-w-full h-auto rounded-lg shadow-sm w-[320px] h-[320px]" />
+          <div className="rounded-lg overflow-hidden bg-checkerboard shadow-sm">
+            <canvas ref={canvasRef} className="max-w-full h-auto block w-[320px] h-[320px]" />
+          </div>
         </div>
       </div>
 
