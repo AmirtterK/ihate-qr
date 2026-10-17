@@ -49,7 +49,7 @@ export function QRStudio() {
   // Normalize URL with auto-prefix
   const normalizedUrl = useMemo(() => {
     const trimmed = url.trim();
-    if (!trimmed) return "https://example.com";
+    if (!trimmed) return "https://github.com";
     if (
       trimmed.startsWith("http://") ||
       trimmed.startsWith("https://") ||
@@ -129,7 +129,7 @@ export function QRStudio() {
       return generateQRMatrix(normalizedUrl, "H");
     } catch (e) {
       console.error("QR Generation error:", e);
-      return generateQRMatrix("https://example.com", "H");
+      return generateQRMatrix("https://github.com", "H");
     }
   }, [normalizedUrl]);
 
