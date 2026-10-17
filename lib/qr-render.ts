@@ -1,0 +1,782 @@
+import { QRCodeData } from "@/lib/qr-code";
+import { FinderShape, ModuleShape, ColorMode, LogoBacking } from "@/lib/qr-types";
+
+// Helper: Hex to RGB
+export function hexToRgb(hex: string): [number, number, number] {
+  let cleaned = hex.replace("#", "").trim();
+  if (cleaned.length === 3) {
+    cleaned = cleaned.split("").map((c) => c + c).join("");
+  }
+  const num = parseInt(cleaned, 16);
+  if (isNaN(num)) return [0, 0, 0];
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+// Helper: Relative Luminance (WCAG)
+export function getLuminance(r: number, g: number, b: number): number {
+  const [rs, gs, bs] = [r / 255, g / 255, b / 255].map((c) => {
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+}
+
+// Helper: Contrast Ratio
+export function getContrastRatio(hex1: string, hex2: string): number {
+  const rgb1 = hexToRgb(hex1);
+  const rgb2 = hexToRgb(hex2);
+  const l1 = getLuminance(rgb1[0], rgb1[1], rgb1[2]);
+  const l2 = getLuminance(rgb2[0], rgb2[1], rgb2[2]);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+// Seeded PRNG (Mulberry32)
+export function createRng(seedStr: string) {
+  let h = 0;
+  for (let i = 0; i < seedStr.length; i++) {
+    h = (Math.imul(31, h) + seedStr.charCodeAt(i)) | 0;
+  }
+  let a = h >>> 0;
+  return function () {
+    let t = (a += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Bulletproof Canvas rounded rectangle with per-corner radii
+export function drawRoundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  tl: number,
+  tr: number,
+  br: number,
+  bl: number
+) {
+  const maxR = Math.min(w, h) / 2;
+  const ctl = Math.max(0, Math.min(tl, maxR));
+  const ctr = Math.max(0, Math.min(tr, maxR));
+  const cbr = Math.max(0, Math.min(br, maxR));
+  const cbl = Math.max(0, Math.min(bl, maxR));
+
+  ctx.beginPath();
+  ctx.moveTo(x + ctl, y);
+  ctx.lineTo(x + w - ctr, y);
+  if (ctr > 0) ctx.arcTo(x + w, y, x + w, y + ctr, ctr);
+  ctx.lineTo(x + w, y + h - cbr);
+  if (cbr > 0) ctx.arcTo(x + w, y + h, x + w - cbr, y + h, cbr);
+  ctx.lineTo(x + cbl, y + h);
+  if (cbl > 0) ctx.arcTo(x, y + h, x, y + h - cbl, cbl);
+  ctx.lineTo(x, y + ctl);
+  if (ctl > 0) ctx.arcTo(x, y, x + ctl, y, ctl);
+  ctx.closePath();
+}
+
+// Generate exact SVG path for a rectangle with individual corner radii
+export function getSvgRoundedRectPath(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  tl: number,
+  tr: number,
+  br: number,
+  bl: number
+): string {
+  const maxR = Math.min(w, h) / 2;
+  const ctl = Math.max(0, Math.min(tl, maxR));
+  const ctr = Math.max(0, Math.min(tr, maxR));
+  const cbr = Math.max(0, Math.min(br, maxR));
+  const cbl = Math.max(0, Math.min(bl, maxR));
+
+  return (
+    `M ${(x + ctl).toFixed(2)} ${y.toFixed(2)} ` +
+    `L ${(x + w - ctr).toFixed(2)} ${y.toFixed(2)} ` +
+    (ctr > 0 ? `A ${ctr.toFixed(2)} ${ctr.toFixed(2)} 0 0 1 ${(x + w).toFixed(2)} ${(y + ctr).toFixed(2)} ` : "") +
+    `L ${(x + w).toFixed(2)} ${(y + h - cbr).toFixed(2)} ` +
+    (cbr > 0 ? `A ${cbr.toFixed(2)} ${cbr.toFixed(2)} 0 0 1 ${(x + w - cbr).toFixed(2)} ${(y + h).toFixed(2)} ` : "") +
+    `L ${(x + cbl).toFixed(2)} ${(y + h).toFixed(2)} ` +
+    (cbl > 0 ? `A ${cbl.toFixed(2)} ${cbl.toFixed(2)} 0 0 1 ${x.toFixed(2)} ${(y + h - cbl).toFixed(2)} ` : "") +
+    `L ${x.toFixed(2)} ${(y + ctl).toFixed(2)} ` +
+    (ctl > 0 ? `A ${ctl.toFixed(2)} ${ctl.toFixed(2)} 0 0 1 ${(x + ctl).toFixed(2)} ${y.toFixed(2)} ` : "") +
+    "Z"
+  );
+}
+
+// Draw a custom artistic finder eye pattern (7x7 modules) onto Canvas
+export function drawFinderEye(
+  ctx: CanvasRenderingContext2D,
+  originX: number,
+  originY: number,
+  modSize: number,
+  shape: FinderShape,
+  color: string,
+  bgColor: string,
+  corner: "tl" | "tr" | "bl"
+) {
+  const outerSize = 7 * modSize;
+  const innerSize = 5 * modSize;
+  const pupilSize = 3 * modSize;
+  const innerOffset = modSize;
+  const pupilOffset = 2 * modSize;
+
+  const cx = originX + outerSize / 2;
+  const cy = originY + outerSize / 2;
+
+  ctx.save();
+
+  if (shape === "circle") {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    ctx.arc(cx, cy, innerSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, pupilSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (shape === "leaf") {
+    const rOut = 2.4 * modSize;
+    const rIn = 1.6 * modSize;
+    const rPup = 0.9 * modSize;
+
+    let tlO = rOut, trO = 0, brO = rOut, blO = 0;
+    let tlI = rIn, trI = 0, brI = rIn, blI = 0;
+    let tlP = rPup, trP = 0, brP = rPup, blP = 0;
+
+    if (corner === "tr" || corner === "bl") {
+      tlO = 0; trO = rOut; brO = 0; blO = rOut;
+      tlI = 0; trI = rIn; brI = 0; blI = rIn;
+      tlP = 0; trP = rPup; brP = 0; blP = rPup;
+    }
+
+    ctx.fillStyle = color;
+    drawRoundRectPath(ctx, originX, originY, outerSize, outerSize, tlO, trO, brO, blO);
+    ctx.fill();
+
+    ctx.fillStyle = bgColor;
+    drawRoundRectPath(ctx, originX + innerOffset, originY + innerOffset, innerSize, innerSize, tlI, trI, brI, blI);
+    ctx.fill();
+
+    ctx.fillStyle = color;
+    drawRoundRectPath(ctx, originX + pupilOffset, originY + pupilOffset, pupilSize, pupilSize, tlP, trP, brP, blP);
+    ctx.fill();
+  } else if (shape === "chamfer") {
+    const chOut = 1.7 * modSize;
+    const chIn = 1.1 * modSize;
+    const chPup = 0.7 * modSize;
+
+    const chamferPath = (ox: number, oy: number, sz: number, ch: number) => {
+      ctx.beginPath();
+      ctx.moveTo(ox + ch, oy);
+      ctx.lineTo(ox + sz - ch, oy);
+      ctx.lineTo(ox + sz, oy + ch);
+      ctx.lineTo(ox + sz, oy + sz - ch);
+      ctx.lineTo(ox + sz - ch, oy + sz);
+      ctx.lineTo(ox + ch, oy + sz);
+      ctx.lineTo(ox, oy + sz - ch);
+      ctx.lineTo(ox, oy + ch);
+      ctx.closePath();
+    };
+
+    ctx.fillStyle = color;
+    chamferPath(originX, originY, outerSize, chOut);
+    ctx.fill();
+
+    ctx.fillStyle = bgColor;
+    chamferPath(originX + innerOffset, originY + innerOffset, innerSize, chIn);
+    ctx.fill();
+
+    ctx.fillStyle = color;
+    chamferPath(originX + pupilOffset, originY + pupilOffset, pupilSize, chPup);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = color;
+    ctx.fillRect(originX, originY, outerSize, outerSize);
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(originX + innerOffset, originY + innerOffset, innerSize, innerSize);
+    ctx.fillStyle = color;
+    ctx.fillRect(originX + pupilOffset, originY + pupilOffset, pupilSize, pupilSize);
+  }
+
+  ctx.restore();
+}
+
+// Generate SVG string for an artistic finder eye
+export function getFinderEyeSvg(
+  originX: number,
+  originY: number,
+  modSize: number,
+  shape: FinderShape,
+  color: string,
+  bgColor: string,
+  corner: "tl" | "tr" | "bl"
+): string {
+  const outerSize = 7 * modSize;
+  const innerSize = 5 * modSize;
+  const pupilSize = 3 * modSize;
+  const innerOffset = modSize;
+  const pupilOffset = 2 * modSize;
+
+  const cx = (originX + 3.5 * modSize).toFixed(2);
+  const cy = (originY + 3.5 * modSize).toFixed(2);
+
+  if (shape === "circle") {
+    const rOut = (3.5 * modSize).toFixed(2);
+    const rIn = (2.5 * modSize).toFixed(2);
+    const rPup = (1.5 * modSize).toFixed(2);
+    return `
+      <circle cx="${cx}" cy="${cy}" r="${rOut}" fill="${color}" />
+      <circle cx="${cx}" cy="${cy}" r="${rIn}" fill="${bgColor}" />
+      <circle cx="${cx}" cy="${cy}" r="${rPup}" fill="${color}" />
+    `;
+  } else if (shape === "leaf") {
+    const rOut = 2.4 * modSize;
+    const rIn = 1.6 * modSize;
+    const rPup = 0.9 * modSize;
+
+    let tlO = rOut, trO = 0, brO = rOut, blO = 0;
+    let tlI = rIn, trI = 0, brI = rIn, blI = 0;
+    let tlP = rPup, trP = 0, brP = rPup, blP = 0;
+
+    if (corner === "tr" || corner === "bl") {
+      tlO = 0; trO = rOut; brO = 0; blO = rOut;
+      tlI = 0; trI = rIn; brI = 0; blI = rIn;
+      tlP = 0; trP = rPup; brP = 0; blP = rPup;
+    }
+
+    const pOut = getSvgRoundedRectPath(originX, originY, outerSize, outerSize, tlO, trO, brO, blO);
+    const pIn = getSvgRoundedRectPath(originX + innerOffset, originY + innerOffset, innerSize, innerSize, tlI, trI, brI, blI);
+    const pPup = getSvgRoundedRectPath(originX + pupilOffset, originY + pupilOffset, pupilSize, pupilSize, tlP, trP, brP, blP);
+
+    return `
+      <path d="${pOut}" fill="${color}" />
+      <path d="${pIn}" fill="${bgColor}" />
+      <path d="${pPup}" fill="${color}" />
+    `;
+  } else if (shape === "chamfer") {
+    const ox = originX, oy = originY, sz = 7 * modSize;
+    return `
+      <polygon points="${(ox + 1.6*modSize).toFixed(2)},${oy.toFixed(2)} ${(ox + sz - 1.6*modSize).toFixed(2)},${oy.toFixed(2)} ${(ox + sz).toFixed(2)},${(oy + 1.6*modSize).toFixed(2)} ${(ox + sz).toFixed(2)},${(oy + sz - 1.6*modSize).toFixed(2)} ${(ox + sz - 1.6*modSize).toFixed(2)},${(oy + sz).toFixed(2)} ${(ox + 1.6*modSize).toFixed(2)},${(oy + sz).toFixed(2)} ${ox.toFixed(2)},${(oy + sz - 1.6*modSize).toFixed(2)} ${ox.toFixed(2)},${(oy + 1.6*modSize).toFixed(2)}" fill="${color}" />
+      <rect x="${(originX + innerOffset).toFixed(2)}" y="${(originY + innerOffset).toFixed(2)}" width="${innerSize.toFixed(2)}" height="${innerSize.toFixed(2)}" rx="${(modSize*0.5).toFixed(2)}" fill="${bgColor}" />
+      <rect x="${(originX + pupilOffset).toFixed(2)}" y="${(originY + pupilOffset).toFixed(2)}" width="${pupilSize.toFixed(2)}" height="${pupilSize.toFixed(2)}" rx="${(modSize*0.4).toFixed(2)}" fill="${color}" />
+    `;
+  } else {
+    return `
+      <rect x="${originX.toFixed(2)}" y="${originY.toFixed(2)}" width="${outerSize.toFixed(2)}" height="${outerSize.toFixed(2)}" fill="${color}" />
+      <rect x="${(originX + innerOffset).toFixed(2)}" y="${(originY + innerOffset).toFixed(2)}" width="${innerSize.toFixed(2)}" height="${innerSize.toFixed(2)}" fill="${bgColor}" />
+      <rect x="${(originX + pupilOffset).toFixed(2)}" y="${(originY + pupilOffset).toFixed(2)}" width="${pupilSize.toFixed(2)}" height="${pupilSize.toFixed(2)}" fill="${color}" />
+    `;
+  }
+}
+
+export interface RenderCanvasOptions {
+  targetCanvas: HTMLCanvasElement;
+  targetSize?: number;
+  qrData: QRCodeData;
+  palette: string[];
+  bgColor: string;
+  bestContrastColor: string;
+  seed: string;
+  finderShape: FinderShape;
+  moduleShape: ModuleShape;
+  colorMode: ColorMode;
+  logoSrc: string | null;
+  logoImage: HTMLImageElement | null;
+  logoSizePercent: number;
+  logoBacking: LogoBacking;
+  logoBackingColor: string;
+}
+
+export function renderQRToCanvas({
+  targetCanvas,
+  targetSize = 1024,
+  qrData,
+  palette,
+  bgColor,
+  bestContrastColor,
+  seed,
+  finderShape,
+  moduleShape,
+  colorMode,
+  logoSrc,
+  logoImage,
+  logoSizePercent,
+  logoBacking,
+  logoBackingColor,
+}: RenderCanvasOptions) {
+  const ctx = targetCanvas.getContext("2d");
+  if (!ctx) return;
+
+  const { size: moduleCount, modules } = qrData;
+  targetCanvas.width = targetSize;
+  targetCanvas.height = targetSize;
+
+  const quietZone = 4;
+  const totalModules = moduleCount + quietZone * 2;
+  const modulePixelSize = targetSize / totalModules;
+
+  // Fill background
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, targetSize, targetSize);
+
+  const rng = createRng(seed);
+
+  let logoLeftMod = -1;
+  let logoRightMod = -1;
+  let logoTopMod = -1;
+  let logoBottomMod = -1;
+
+  if (logoSrc) {
+    const logoModules = (logoSizePercent / 100) * moduleCount;
+    const center = moduleCount / 2;
+    const half = logoModules / 2;
+    logoLeftMod = Math.floor(center - half);
+    logoRightMod = Math.ceil(center + half) - 1;
+    logoTopMod = Math.floor(center - half);
+    logoBottomMod = Math.ceil(center + half) - 1;
+  }
+
+  let fillGradient: CanvasGradient | null = null;
+  const seedNum = Math.abs(parseInt(seed, 10) || 48291);
+
+  if (colorMode === "gradient") {
+    const angleMode = seedNum % 4;
+    if (angleMode === 0) {
+      fillGradient = ctx.createLinearGradient(0, 0, targetSize, targetSize);
+    } else if (angleMode === 1) {
+      fillGradient = ctx.createLinearGradient(targetSize / 2, 0, targetSize / 2, targetSize);
+    } else if (angleMode === 2) {
+      fillGradient = ctx.createLinearGradient(0, targetSize, targetSize, 0);
+    } else {
+      fillGradient = ctx.createLinearGradient(0, targetSize / 2, targetSize, targetSize / 2);
+    }
+
+    if (palette.length === 1) {
+      fillGradient.addColorStop(0, palette[0]);
+      fillGradient.addColorStop(1, palette[0]);
+    } else {
+      palette.forEach((c, idx) => {
+        fillGradient!.addColorStop(idx / (palette.length - 1), c);
+      });
+    }
+  } else if (colorMode === "radial") {
+    const offsetMode = seedNum % 3;
+    const cx = offsetMode === 1 ? targetSize * 0.42 : offsetMode === 2 ? targetSize * 0.58 : targetSize * 0.5;
+    const cy = offsetMode === 1 ? targetSize * 0.42 : offsetMode === 2 ? targetSize * 0.58 : targetSize * 0.5;
+
+    fillGradient = ctx.createRadialGradient(
+      cx,
+      cy,
+      targetSize * 0.05,
+      targetSize / 2,
+      targetSize / 2,
+      targetSize * 0.72
+    );
+
+    if (palette.length === 1) {
+      fillGradient.addColorStop(0, palette[0]);
+      fillGradient.addColorStop(1, palette[0]);
+    } else {
+      palette.forEach((c, idx) => {
+        fillGradient!.addColorStop(idx / (palette.length - 1), c);
+      });
+    }
+  }
+
+  const isDataCell = (r: number, c: number) => {
+    if (r < 0 || r >= moduleCount || c < 0 || c >= moduleCount) return false;
+    if (r < 8 && c < 8) return false;
+    if (r < 8 && c >= moduleCount - 8) return false;
+    if (r >= moduleCount - 8 && c < 8) return false;
+    if (logoSrc && r >= logoTopMod && r <= logoBottomMod && c >= logoLeftMod && c <= logoRightMod) return false;
+    return modules[r][c];
+  };
+
+  // Draw all data modules
+  for (let r = 0; r < moduleCount; r++) {
+    for (let c = 0; c < moduleCount; c++) {
+      if (!modules[r][c]) continue;
+
+      if ((r < 8 && c < 8) || (r < 8 && c >= moduleCount - 8) || (r >= moduleCount - 8 && c < 8)) {
+        continue;
+      }
+
+      if (logoSrc && r >= logoTopMod && r <= logoBottomMod && c >= logoLeftMod && c <= logoRightMod) {
+        continue;
+      }
+
+      const x = (c + quietZone) * modulePixelSize;
+      const y = (r + quietZone) * modulePixelSize;
+
+      if (fillGradient) {
+        ctx.fillStyle = fillGradient;
+      } else {
+        const colorIdx = Math.floor(rng() * palette.length);
+        ctx.fillStyle = palette[colorIdx];
+      }
+
+      if (moduleShape === "square") {
+        ctx.fillRect(x, y, modulePixelSize + 0.3, modulePixelSize + 0.3);
+      } else if (moduleShape === "rounded") {
+        const rad = modulePixelSize * 0.35;
+        drawRoundRectPath(ctx, x, y, modulePixelSize, modulePixelSize, rad, rad, rad, rad);
+        ctx.fill();
+      } else if (moduleShape === "dots") {
+        ctx.beginPath();
+        ctx.arc(
+          x + modulePixelSize / 2,
+          y + modulePixelSize / 2,
+          modulePixelSize * 0.44,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+      } else if (moduleShape === "diamond") {
+        ctx.beginPath();
+        ctx.moveTo(x + modulePixelSize / 2, y);
+        ctx.lineTo(x + modulePixelSize, y + modulePixelSize / 2);
+        ctx.lineTo(x + modulePixelSize / 2, y + modulePixelSize);
+        ctx.lineTo(x, y + modulePixelSize / 2);
+        ctx.closePath();
+        ctx.fill();
+      } else if (moduleShape === "fluid") {
+        const hasTop = isDataCell(r - 1, c);
+        const hasBottom = isDataCell(r + 1, c);
+        const hasLeft = isDataCell(r, c - 1);
+        const hasRight = isDataCell(r, c + 1);
+
+        const rad = modulePixelSize * 0.32;
+        const tl = !hasTop && !hasLeft ? rad : 0;
+        const tr = !hasTop && !hasRight ? rad : 0;
+        const br = !hasBottom && !hasRight ? rad : 0;
+        const bl = !hasBottom && !hasLeft ? rad : 0;
+
+        drawRoundRectPath(ctx, x, y, modulePixelSize + 0.1, modulePixelSize + 0.1, tl, tr, br, bl);
+        ctx.fill();
+      } else if (moduleShape === "liquid") {
+        const hasTop = isDataCell(r - 1, c);
+        const hasBottom = isDataCell(r + 1, c);
+        const hasLeft = isDataCell(r, c - 1);
+        const hasRight = isDataCell(r, c + 1);
+
+        const rad = modulePixelSize * 0.5;
+        const tl = !hasTop && !hasLeft ? rad : 0;
+        const tr = !hasTop && !hasRight ? rad : 0;
+        const br = !hasBottom && !hasRight ? rad : 0;
+        const bl = !hasBottom && !hasLeft ? rad : 0;
+
+        drawRoundRectPath(ctx, x, y, modulePixelSize + 0.15, modulePixelSize + 0.15, tl, tr, br, bl);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Draw 3 finder eyes
+  drawFinderEye(
+    ctx,
+    quietZone * modulePixelSize,
+    quietZone * modulePixelSize,
+    modulePixelSize,
+    finderShape,
+    bestContrastColor,
+    bgColor,
+    "tl"
+  );
+  drawFinderEye(
+    ctx,
+    (moduleCount - 7 + quietZone) * modulePixelSize,
+    quietZone * modulePixelSize,
+    modulePixelSize,
+    finderShape,
+    bestContrastColor,
+    bgColor,
+    "tr"
+  );
+  drawFinderEye(
+    ctx,
+    quietZone * modulePixelSize,
+    (moduleCount - 7 + quietZone) * modulePixelSize,
+    modulePixelSize,
+    finderShape,
+    bestContrastColor,
+    bgColor,
+    "bl"
+  );
+
+  // Draw Logo if present
+  if (logoImage && logoSrc) {
+    const logoPixelSize = (logoSizePercent / 100) * (moduleCount * modulePixelSize);
+    const cx = targetSize / 2;
+    const cy = targetSize / 2;
+    const lx = cx - logoPixelSize / 2;
+    const ly = cy - logoPixelSize / 2;
+
+    if (logoBacking !== "none") {
+      const pad = modulePixelSize * 0.25;
+      ctx.fillStyle = logoBackingColor;
+      if (logoBacking === "circle") {
+        ctx.beginPath();
+        ctx.arc(cx, cy, (logoPixelSize + pad) / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (logoBacking === "rounded") {
+        ctx.beginPath();
+        drawRoundRectPath(
+          ctx,
+          lx - pad / 2,
+          ly - pad / 2,
+          logoPixelSize + pad,
+          logoPixelSize + pad,
+          (logoPixelSize + pad) * 0.22,
+          (logoPixelSize + pad) * 0.22,
+          (logoPixelSize + pad) * 0.22,
+          (logoPixelSize + pad) * 0.22
+        );
+        ctx.fill();
+      } else {
+        ctx.fillRect(lx - pad / 2, ly - pad / 2, logoPixelSize + pad, logoPixelSize + pad);
+      }
+    }
+
+    ctx.drawImage(logoImage, lx, ly, logoPixelSize, logoPixelSize);
+  }
+}
+
+export interface GenerateSvgOptions {
+  qrData: QRCodeData;
+  palette: string[];
+  bgColor: string;
+  bestContrastColor: string;
+  seed: string;
+  finderShape: FinderShape;
+  moduleShape: ModuleShape;
+  colorMode: ColorMode;
+  logoSrc: string | null;
+  logoSizePercent: number;
+  logoBacking: LogoBacking;
+  logoBackingColor: string;
+}
+
+export function generateQRSvgString({
+  qrData,
+  palette,
+  bgColor,
+  bestContrastColor,
+  seed,
+  finderShape,
+  moduleShape,
+  colorMode,
+  logoSrc,
+  logoSizePercent,
+  logoBacking,
+  logoBackingColor,
+}: GenerateSvgOptions): string {
+  const { size: moduleCount, modules } = qrData;
+  const quietZone = 4;
+  const totalModules = moduleCount + quietZone * 2;
+  const svgSize = 1024;
+  const modSize = svgSize / totalModules;
+
+  const rng = createRng(seed);
+  const seedNum = Math.abs(parseInt(seed, 10) || 48291);
+
+  let logoLeftMod = -1;
+  let logoRightMod = -1;
+  let logoTopMod = -1;
+  let logoBottomMod = -1;
+
+  if (logoSrc) {
+    const logoModules = (logoSizePercent / 100) * moduleCount;
+    const center = moduleCount / 2;
+    const half = logoModules / 2;
+    logoLeftMod = Math.floor(center - half);
+    logoRightMod = Math.ceil(center + half) - 1;
+    logoTopMod = Math.floor(center - half);
+    logoBottomMod = Math.ceil(center + half) - 1;
+  }
+
+  // Gradient defs if requested
+  let defsXml = "";
+  if (colorMode === "gradient") {
+    const angleMode = seedNum % 4;
+    let coords = 'x1="0%" y1="0%" x2="100%" y2="100%"';
+    if (angleMode === 1) coords = 'x1="50%" y1="0%" x2="50%" y2="100%"';
+    else if (angleMode === 2) coords = 'x1="0%" y1="100%" x2="100%" y2="0%"';
+    else if (angleMode === 3) coords = 'x1="0%" y1="50%" x2="100%" y2="50%"';
+
+    const stops =
+      palette.length === 1
+        ? `<stop offset="0%" stop-color="${palette[0]}" /><stop offset="100%" stop-color="${palette[0]}" />`
+        : palette
+            .map(
+              (c, idx) =>
+                `<stop offset="${((idx / (palette.length - 1)) * 100).toFixed(1)}%" stop-color="${c}" />`
+            )
+            .join("");
+    defsXml = `<defs><linearGradient id="qrGrad" ${coords}>${stops}</linearGradient></defs>`;
+  } else if (colorMode === "radial") {
+    const offsetMode = seedNum % 3;
+    const cx = offsetMode === 1 ? "42%" : offsetMode === 2 ? "58%" : "50%";
+    const cy = offsetMode === 1 ? "42%" : offsetMode === 2 ? "58%" : "50%";
+
+    const stops =
+      palette.length === 1
+        ? `<stop offset="0%" stop-color="${palette[0]}" /><stop offset="100%" stop-color="${palette[0]}" />`
+        : palette
+            .map(
+              (c, idx) =>
+                `<stop offset="${((idx / (palette.length - 1)) * 100).toFixed(1)}%" stop-color="${c}" />`
+            )
+            .join("");
+    defsXml = `<defs><radialGradient id="qrGrad" cx="${cx}" cy="${cy}" r="70%">${stops}</radialGradient></defs>`;
+  }
+
+  const isDataCell = (r: number, c: number) => {
+    if (r < 0 || r >= moduleCount || c < 0 || c >= moduleCount) return false;
+    if (r < 8 && c < 8) return false;
+    if (r < 8 && c >= moduleCount - 8) return false;
+    if (r >= moduleCount - 8 && c < 8) return false;
+    if (logoSrc && r >= logoTopMod && r <= logoBottomMod && c >= logoLeftMod && c <= logoRightMod) return false;
+    return modules[r][c];
+  };
+
+  let modulesXml = "";
+  for (let r = 0; r < moduleCount; r++) {
+    for (let c = 0; c < moduleCount; c++) {
+      if (!modules[r][c]) continue;
+      if ((r < 8 && c < 8) || (r < 8 && c >= moduleCount - 8) || (r >= moduleCount - 8 && c < 8)) continue;
+      if (logoSrc && r >= logoTopMod && r <= logoBottomMod && c >= logoLeftMod && c <= logoRightMod) continue;
+
+      const x = ((c + quietZone) * modSize).toFixed(2);
+      const y = ((r + quietZone) * modSize).toFixed(2);
+      const w = (modSize + 0.1).toFixed(2);
+
+      let fillAttr = "";
+      if (colorMode === "scatter") {
+        const colorIdx = Math.floor(rng() * palette.length);
+        fillAttr = `fill="${palette[colorIdx]}"`;
+      } else {
+        fillAttr = `fill="url(#qrGrad)"`;
+      }
+
+      if (moduleShape === "square") {
+        modulesXml += `<rect x="${x}" y="${y}" width="${w}" height="${w}" ${fillAttr} />`;
+      } else if (moduleShape === "rounded") {
+        const rx = (modSize * 0.35).toFixed(2);
+        modulesXml += `<rect x="${x}" y="${y}" width="${w}" height="${w}" rx="${rx}" ${fillAttr} />`;
+      } else if (moduleShape === "dots") {
+        const cx = ((c + quietZone + 0.5) * modSize).toFixed(2);
+        const cy = ((r + quietZone + 0.5) * modSize).toFixed(2);
+        const rad = (modSize * 0.44).toFixed(2);
+        modulesXml += `<circle cx="${cx}" cy="${cy}" r="${rad}" ${fillAttr} />`;
+      } else if (moduleShape === "diamond") {
+        const mx = (parseFloat(x) + modSize / 2).toFixed(2);
+        const my = (parseFloat(y) + modSize / 2).toFixed(2);
+        const x2 = (parseFloat(x) + modSize).toFixed(2);
+        const y2 = (parseFloat(y) + modSize).toFixed(2);
+        modulesXml += `<polygon points="${mx},${y} ${x2},${my} ${mx},${y2} ${x},${my}" ${fillAttr} />`;
+      } else if (moduleShape === "fluid") {
+        const hasTop = isDataCell(r - 1, c);
+        const hasBottom = isDataCell(r + 1, c);
+        const hasLeft = isDataCell(r, c - 1);
+        const hasRight = isDataCell(r, c + 1);
+
+        const rad = modSize * 0.32;
+        const tl = !hasTop && !hasLeft ? rad : 0;
+        const tr = !hasTop && !hasRight ? rad : 0;
+        const br = !hasBottom && !hasRight ? rad : 0;
+        const bl = !hasBottom && !hasLeft ? rad : 0;
+
+        const p = getSvgRoundedRectPath(
+          (c + quietZone) * modSize,
+          (r + quietZone) * modSize,
+          modSize + 0.05,
+          modSize + 0.05,
+          tl,
+          tr,
+          br,
+          bl
+        );
+        modulesXml += `<path d="${p}" ${fillAttr} />`;
+      } else if (moduleShape === "liquid") {
+        const hasTop = isDataCell(r - 1, c);
+        const hasBottom = isDataCell(r + 1, c);
+        const hasLeft = isDataCell(r, c - 1);
+        const hasRight = isDataCell(r, c + 1);
+
+        const rad = modSize * 0.5;
+        const tl = !hasTop && !hasLeft ? rad : 0;
+        const tr = !hasTop && !hasRight ? rad : 0;
+        const br = !hasBottom && !hasRight ? rad : 0;
+        const bl = !hasBottom && !hasLeft ? rad : 0;
+
+        const p = getSvgRoundedRectPath(
+          (c + quietZone) * modSize,
+          (r + quietZone) * modSize,
+          modSize + 0.06,
+          modSize + 0.06,
+          tl,
+          tr,
+          br,
+          bl
+        );
+        modulesXml += `<path d="${p}" ${fillAttr} />`;
+      }
+    }
+  }
+
+  // Finder eyes SVG
+  const findersXml = `
+    ${getFinderEyeSvg(quietZone * modSize, quietZone * modSize, modSize, finderShape, bestContrastColor, bgColor, "tl")}
+    ${getFinderEyeSvg((moduleCount - 7 + quietZone) * modSize, quietZone * modSize, modSize, finderShape, bestContrastColor, bgColor, "tr")}
+    ${getFinderEyeSvg(quietZone * modSize, (moduleCount - 7 + quietZone) * modSize, modSize, finderShape, bestContrastColor, bgColor, "bl")}
+  `;
+
+  // Logo XML
+  let logoXml = "";
+  if (logoSrc) {
+    const logoPixelSize = ((logoSizePercent / 100) * (moduleCount * modSize)).toFixed(2);
+    const cx = (svgSize / 2).toFixed(2);
+    const cy = (svgSize / 2).toFixed(2);
+    const lx = (svgSize / 2 - parseFloat(logoPixelSize) / 2).toFixed(2);
+    const ly = (svgSize / 2 - parseFloat(logoPixelSize) / 2).toFixed(2);
+    const pad = (modSize * 0.25).toFixed(2);
+
+    if (logoBacking === "circle") {
+      const radius = ((parseFloat(logoPixelSize) + parseFloat(pad)) / 2).toFixed(2);
+      logoXml += `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="${logoBackingColor}" />`;
+    } else if (logoBacking === "rounded") {
+      const bSize = (parseFloat(logoPixelSize) + parseFloat(pad)).toFixed(2);
+      const bx = (parseFloat(lx) - parseFloat(pad) / 2).toFixed(2);
+      const by = (parseFloat(ly) - parseFloat(pad) / 2).toFixed(2);
+      const rx = (parseFloat(bSize) * 0.22).toFixed(2);
+      logoXml += `<rect x="${bx}" y="${by}" width="${bSize}" height="${bSize}" rx="${rx}" fill="${logoBackingColor}" />`;
+    } else if (logoBacking === "square") {
+      const bSize = (parseFloat(logoPixelSize) + parseFloat(pad)).toFixed(2);
+      const bx = (parseFloat(lx) - parseFloat(pad) / 2).toFixed(2);
+      const by = (parseFloat(ly) - parseFloat(pad) / 2).toFixed(2);
+      logoXml += `<rect x="${bx}" y="${by}" width="${bSize}" height="${bSize}" fill="${logoBackingColor}" />`;
+    }
+
+    logoXml += `<image href="${logoSrc}" x="${lx}" y="${ly}" width="${logoPixelSize}" height="${logoPixelSize}" />`;
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgSize} ${svgSize}" width="${svgSize}" height="${svgSize}">
+  <rect width="100%" height="100%" fill="${bgColor}" />
+  ${defsXml}
+  ${modulesXml}
+  ${findersXml}
+  ${logoXml}
+</svg>`;
+}

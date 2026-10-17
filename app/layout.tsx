@@ -9,7 +9,12 @@ export const metadata: Metadata = {
   title: "ihate-qr",
   description: "Custom styled mixed-palette QR code generator",
   icons: {
-    icon: "/icon.svg",
+    icon: [
+      { url: "/icon.png", type: "image/png" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/icon.png",
+    apple: "/icon.png",
   },
 };
 
