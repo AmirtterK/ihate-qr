@@ -215,7 +215,7 @@ export function QRStudio() {
   };
 
   const removeColor = (index: number) => {
-    if (palette.length > 2) {
+    if (palette.length > 1) {
       setPalette(palette.filter((_, i) => i !== index));
     }
   };
@@ -307,7 +307,7 @@ export function QRStudio() {
         onShuffle={shuffleColors}
       />
 
-      {/* Responsive Layout: On mobile -> Link (1) -> Style (2) -> QR (3) -> Logo/Dropzone (4) | On desktop -> 3 columns */}
+      {/* Responsive Layout: On mobile -> Link (1) -> QR (2) -> Style (3) -> Logo/Dropzone (4) | On desktop -> 3 columns */}
       <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-6 md:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 lg:grid-rows-[auto_1fr] gap-6 items-start">
           
@@ -319,8 +319,21 @@ export function QRStudio() {
             />
           </div>
 
-          {/* WIDGET 2: Style & Colors widget - Mobile: 2nd, Desktop: Col 9-12 Rows 1-2 */}
-          <div className="order-2 lg:order-none lg:col-start-9 lg:col-span-4 lg:row-start-1 lg:row-span-2 space-y-6">
+          {/* WIDGET 2: QR Code Preview - Mobile: 2nd, Desktop: Col 5-8 Rows 1-2 (sticky) */}
+          <div className="order-2 lg:order-none lg:col-start-5 lg:col-span-4 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-20 space-y-5">
+            <PreviewWidget
+              canvasRef={canvasRef}
+              safetyReport={safetyReport}
+              onDownloadPng={downloadPng}
+              onDownloadSvg={downloadSvg}
+              onShuffle={shuffleColors}
+              onCopy={copyToClipboard}
+              copied={copied}
+            />
+          </div>
+
+          {/* WIDGET 3: Style & Colors widget - Mobile: 3rd, Desktop: Col 9-12 Rows 1-2 */}
+          <div className="order-3 lg:order-none lg:col-start-9 lg:col-span-4 lg:row-start-1 lg:row-span-2 space-y-6">
             <StyleWidget
               palette={palette}
               bgColor={bgColor}
@@ -337,19 +350,6 @@ export function QRStudio() {
               onUpdateColor={updateColor}
               onRemoveColor={removeColor}
               onShuffle={shuffleColors}
-            />
-          </div>
-
-          {/* WIDGET 3: QR Code Preview - Mobile: 3rd, Desktop: Col 5-8 Rows 1-2 (sticky) */}
-          <div className="order-3 lg:order-none lg:col-start-5 lg:col-span-4 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-20 space-y-5">
-            <PreviewWidget
-              canvasRef={canvasRef}
-              safetyReport={safetyReport}
-              onDownloadPng={downloadPng}
-              onDownloadSvg={downloadSvg}
-              onShuffle={shuffleColors}
-              onCopy={copyToClipboard}
-              copied={copied}
             />
           </div>
 

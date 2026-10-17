@@ -13,6 +13,7 @@ export interface Preset {
 }
 
 export const PRESETS: Preset[] = [
+  { name: "Standard Black", colors: ["#000000"], bg: "#FFFFFF", finderShape: "square", moduleShape: "square", colorMode: "scatter" },
   { name: "Crimson & Noir", colors: ["#E11D48", "#18181B"], bg: "#FFFFFF", finderShape: "square", moduleShape: "square", colorMode: "scatter" },
   { name: "Cyber Neon", colors: ["#06B6D4", "#D946EF", "#3B82F6"], bg: "#09090B", finderShape: "chamfer", moduleShape: "fluid", colorMode: "gradient" },
   { name: "Zen Bamboo", colors: ["#16A34A", "#064E3B"], bg: "#FBF9F5", finderShape: "leaf", moduleShape: "liquid", colorMode: "gradient" },

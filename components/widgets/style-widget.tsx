@@ -200,7 +200,7 @@ export function StyleWidget({
                       </span>
                     )}
                   </div>
-                  {palette.length > 2 && (
+                  {palette.length > 1 && (
                     <button
                       onClick={() => onRemoveColor(idx)}
                       className="text-muted-foreground hover:text-destructive p-1 transition"
