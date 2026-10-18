@@ -28,7 +28,7 @@ export function LinkWidget({ url, onUrlChange }: LinkWidgetProps) {
           type="text"
           value={url}
           onChange={(e) => onUrlChange(e.target.value)}
-          placeholder="https://amirhattab.vercel.app"
+          placeholder="https://example.com"
           className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
         />
       </div>
