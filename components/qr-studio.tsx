@@ -37,7 +37,7 @@ export function QRStudio() {
   const [logoSrc, setLogoSrc] = useState<string | null>(null);
   const [logoName, setLogoName] = useState("");
   const [logoSizePercent, setLogoSizePercent] = useState(18); // 10% to 25%
-  const [logoBacking, setLogoBacking] = useState<LogoBacking>("rounded");
+  const [logoBacking, setLogoBacking] = useState<LogoBacking>("none");
   const [logoBackingColor, setLogoBackingColor] = useState("#FFFFFF");
 
   // UI state

@@ -104,45 +104,7 @@ export function LogoWidget({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground block">Backing Plate</label>
-              <select
-                value={logoBacking}
-                onChange={(e) => onLogoBackingChange(e.target.value as LogoBacking)}
-                className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs"
-              >
-                <option value="rounded">Rounded Square</option>
-                <option value="circle">Circle</option>
-                <option value="square">Square</option>
-                <option value="none">None</option>
-              </select>
-            </div>
 
-            {logoBacking !== "none" && (
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground flex justify-between">
-                  <span>Backing Color</span>
-                  <span className="font-mono text-xs uppercase">{logoBackingColor}</span>
-                </label>
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="color"
-                    value={logoBackingColor}
-                    onChange={(e) => onLogoBackingColorChange(e.target.value)}
-                    className="w-8 h-8 rounded cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={logoBackingColor}
-                    onChange={(e) => onLogoBackingColorChange(e.target.value)}
-                    className="h-8 px-2 rounded-md border border-input bg-background font-mono text-xs uppercase flex-1"
-                    maxLength={7}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       )}
     </div>
