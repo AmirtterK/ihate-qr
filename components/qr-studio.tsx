@@ -24,7 +24,7 @@ import { LogoWidget } from "@/components/widgets/logo-widget";
 
 export function QRStudio() {
   // Inputs
-  const [url, setUrl] = useState("https://amirhattab.vercel.app");
+  const [url, setUrl] = useState("");
   const [palette, setPalette] = useState<string[]>(["#000000"]);
   const [bgColor, setBgColor] = useState("#FFFFFF");
   const [seed, setSeed] = useState("48291");
