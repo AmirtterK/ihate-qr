@@ -24,7 +24,7 @@ import { LogoWidget } from "@/components/widgets/logo-widget";
 
 export function QRStudio() {
   // Inputs
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState("https://amirhattab.vercel.app");
   const [palette, setPalette] = useState<string[]>(["#000000"]);
   const [bgColor, setBgColor] = useState("#FFFFFF");
   const [seed, setSeed] = useState("48291");
@@ -49,7 +49,7 @@ export function QRStudio() {
   // Normalize URL with auto-prefix
   const normalizedUrl = useMemo(() => {
     const trimmed = url.trim();
-    if (!trimmed) return "https://github.com";
+    if (!trimmed) return "https://amirhattab.vercel.app";
     if (
       trimmed.startsWith("http://") ||
       trimmed.startsWith("https://") ||
@@ -131,7 +131,7 @@ export function QRStudio() {
       return generateQRMatrix(normalizedUrl, "H");
     } catch (e) {
       console.error("QR Generation error:", e);
-      return generateQRMatrix("https://github.com", "H");
+      return generateQRMatrix("https://amirhattab.vercel.app", "H");
     }
   }, [normalizedUrl]);
 
