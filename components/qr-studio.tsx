@@ -240,11 +240,11 @@ export function QRStudio() {
   const applyPreset = (preset: Preset) => {
     setPalette([...preset.colors]);
     setBgColor(preset.bg);
-    if (preset.finderShape) setFinderShape(preset.finderShape);
-    if (preset.eyePupilShape) setEyePupilShape(preset.eyePupilShape);
-    if (preset.moduleShape) setModuleShape(preset.moduleShape);
-    if (preset.colorMode) setColorMode(preset.colorMode);
-    if (preset.codeContainer) setCodeContainer(preset.codeContainer);
+    setFinderShape(preset.finderShape || "square");
+    setEyePupilShape(preset.eyePupilShape || "auto");
+    setModuleShape(preset.moduleShape || "square");
+    setColorMode(preset.colorMode || "scatter");
+    setCodeContainer(preset.codeContainer || "default");
     setSeed(Math.floor(10000 + Math.random() * 900000).toString());
   };
 

@@ -118,6 +118,27 @@ export function getSvgRoundedRectPath(
   );
 }
 
+// Canonical plump, upright, beautifully proportioned vector heart
+export function drawPlumpHeartPath(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: number) {
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + 0.9 * h);
+  ctx.bezierCurveTo(cx - 0.55 * h, cy + 0.55 * h, cx - 0.95 * h, cy + 0.1 * h, cx - 0.95 * h, cy - 0.3 * h);
+  ctx.bezierCurveTo(cx - 0.95 * h, cy - 0.75 * h, cx - 0.3 * h, cy - 0.9 * h, cx, cy - 0.35 * h);
+  ctx.bezierCurveTo(cx + 0.3 * h, cy - 0.9 * h, cx + 0.95 * h, cy - 0.75 * h, cx + 0.95 * h, cy - 0.3 * h);
+  ctx.bezierCurveTo(cx + 0.95 * h, cy + 0.1 * h, cx + 0.55 * h, cy + 0.55 * h, cx, cy + 0.9 * h);
+  ctx.closePath();
+}
+
+export function getPlumpHeartSvgPath(cx: number, cy: number, h: number): string {
+  return (
+    `M ${cx.toFixed(2)} ${(cy + 0.9 * h).toFixed(2)} ` +
+    `C ${(cx - 0.55 * h).toFixed(2)} ${(cy + 0.55 * h).toFixed(2)}, ${(cx - 0.95 * h).toFixed(2)} ${(cy + 0.1 * h).toFixed(2)}, ${(cx - 0.95 * h).toFixed(2)} ${(cy - 0.3 * h).toFixed(2)} ` +
+    `C ${(cx - 0.95 * h).toFixed(2)} ${(cy - 0.75 * h).toFixed(2)}, ${(cx - 0.3 * h).toFixed(2)} ${(cy - 0.9 * h).toFixed(2)}, ${cx.toFixed(2)} ${(cy - 0.35 * h).toFixed(2)} ` +
+    `C ${(cx + 0.3 * h).toFixed(2)} ${(cy - 0.9 * h).toFixed(2)}, ${(cx + 0.95 * h).toFixed(2)} ${(cy - 0.75 * h).toFixed(2)}, ${(cx + 0.95 * h).toFixed(2)} ${(cy - 0.3 * h).toFixed(2)} ` +
+    `C ${(cx + 0.95 * h).toFixed(2)} ${(cy + 0.1 * h).toFixed(2)}, ${(cx + 0.55 * h).toFixed(2)} ${(cy + 0.55 * h).toFixed(2)}, ${cx.toFixed(2)} ${(cy + 0.9 * h).toFixed(2)} Z`
+  );
+}
+
 // Natural pupil pairing resolution
 export function resolvePupilShape(frameShape: FinderShape, pupilShape?: EyePupilShape): EyePupilShape {
   if (pupilShape && pupilShape !== "auto") return pupilShape;
@@ -196,12 +217,7 @@ export function drawPupilOnCanvas(
     ctx.closePath();
     ctx.fill();
   } else if (resolvedPupil === "heart") {
-    const s = pupilSize * 0.46;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy + s * 0.8);
-    ctx.bezierCurveTo(cx - s * 1.3, cy + s * 0.15, cx - s * 1.25, cy - s * 0.8, cx, cy - s * 0.25);
-    ctx.bezierCurveTo(cx + s * 1.25, cy - s * 0.8, cx + s * 1.3, cy + s * 0.15, cx, cy + s * 0.8);
-    ctx.closePath();
+    drawPlumpHeartPath(ctx, cx, cy, pupilSize * 0.44);
     ctx.fill();
   } else if (resolvedPupil === "cross") {
     const arm = pupilSize * 0.3;
@@ -291,8 +307,7 @@ export function getPupilSvg(
     }
     return `<polygon points="${pts.trim()}" fill="${color}" />`;
   } else if (resolvedPupil === "heart") {
-    const s = pupilSize * 0.46;
-    return `<path d="M ${cx.toFixed(2)} ${(cy + s * 0.8).toFixed(2)} C ${(cx - s * 1.3).toFixed(2)} ${(cy + s * 0.15).toFixed(2)} ${(cx - s * 1.25).toFixed(2)} ${(cy - s * 0.8).toFixed(2)} ${cx.toFixed(2)} ${(cy - s * 0.25).toFixed(2)} C ${(cx + s * 1.25).toFixed(2)} ${(cy - s * 0.8).toFixed(2)} ${(cx + s * 1.3).toFixed(2)} ${(cy + s * 0.15).toFixed(2)} ${cx.toFixed(2)} ${(cy + s * 0.8).toFixed(2)} Z" fill="${color}" />`;
+    return `<path d="${getPlumpHeartSvgPath(cx, cy, pupilSize * 0.44)}" fill="${color}" />`;
   } else if (resolvedPupil === "cross") {
     const arm = pupilSize * 0.3;
     return `
@@ -548,20 +563,21 @@ export function drawFinderEye(
     };
 
     ctx.fillStyle = color;
-    drawStar(cx, cy, outerSize / 2, outerSize * 0.22, 5);
+    drawStar(cx, cy, outerSize / 2, 2.65 * modSize, 5);
     ctx.fill();
 
+    const cutR = 2.15 * modSize;
     if (isTransparent) {
       ctx.save();
       ctx.globalCompositeOperation = "destination-out";
       ctx.beginPath();
-      ctx.arc(cx, cy, innerSize / 2, 0, Math.PI * 2);
+      ctx.arc(cx, cy, cutR, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     } else {
       ctx.fillStyle = bgColor;
       ctx.beginPath();
-      ctx.arc(cx, cy, innerSize / 2, 0, Math.PI * 2);
+      ctx.arc(cx, cy, cutR, 0, Math.PI * 2);
       ctx.fill();
     }
   } else if (shape === "viewfinder") {
@@ -582,27 +598,19 @@ export function drawFinderEye(
     ctx.fillRect(originX + outerSize - arm, originY + outerSize - thick, arm, thick);
     ctx.fillRect(originX + outerSize - thick, originY + outerSize - arm, thick, arm);
   } else if (shape === "heart") {
-    const drawHeart = (hx: number, hy: number, s: number) => {
-      ctx.beginPath();
-      ctx.moveTo(hx, hy + s * 0.8);
-      ctx.bezierCurveTo(hx - s * 1.3, hy + s * 0.15, hx - s * 1.25, hy - s * 0.8, hx, hy - s * 0.25);
-      ctx.bezierCurveTo(hx + s * 1.25, hy - s * 0.8, hx + s * 1.3, hy + s * 0.15, hx, hy + s * 0.8);
-      ctx.closePath();
-    };
-
     ctx.fillStyle = color;
-    drawHeart(cx, cy, outerSize * 0.46);
+    drawPlumpHeartPath(ctx, cx, cy, 3.3 * modSize);
     ctx.fill();
 
     if (isTransparent) {
       ctx.save();
       ctx.globalCompositeOperation = "destination-out";
-      drawHeart(cx, cy, innerSize * 0.44);
+      drawPlumpHeartPath(ctx, cx, cy, 2.15 * modSize);
       ctx.fill();
       ctx.restore();
     } else {
       ctx.fillStyle = bgColor;
-      drawHeart(cx, cy, innerSize * 0.44);
+      drawPlumpHeartPath(ctx, cx, cy, 2.15 * modSize);
       ctx.fill();
     }
   } else if (shape === "teardrop") {
@@ -881,9 +889,9 @@ export function getFinderEyeSvg(
       return d + "Z";
     };
 
-    const starPath = svgStar(cxNum, cyNum, outerSize / 2, outerSize * 0.22, 5);
-    const rIn = (2.5 * modSize).toFixed(2);
-    const rINum = 2.5 * modSize;
+    const starPath = svgStar(cxNum, cyNum, outerSize / 2, 2.65 * modSize, 5);
+    const rIn = (2.15 * modSize).toFixed(2);
+    const rINum = 2.15 * modSize;
 
     if (isTransparent) {
       frameSvg = `<path d="${starPath} M ${cxNum} ${(cyNum - rINum).toFixed(2)} A ${rIn} ${rIn} 0 1 1 ${cxNum} ${(cyNum + rINum).toFixed(2)} A ${rIn} ${rIn} 0 1 1 ${cxNum} ${(cyNum - rINum).toFixed(2)} Z" fill="${color}" fill-rule="evenodd" />`;
@@ -914,12 +922,8 @@ export function getFinderEyeSvg(
       <rect x="${rightThick}" y="${bottomArm}" width="${thick}" height="${arm}" fill="${color}" />
     `;
   } else if (shape === "heart") {
-    const svgHeart = (hx: number, hy: number, s: number) => {
-      return `M ${hx.toFixed(2)} ${(hy + s * 0.8).toFixed(2)} C ${(hx - s * 1.3).toFixed(2)} ${(hy + s * 0.15).toFixed(2)} ${(hx - s * 1.25).toFixed(2)} ${(hy - s * 0.8).toFixed(2)} ${hx.toFixed(2)} ${(hy - s * 0.25).toFixed(2)} C ${(hx + s * 1.25).toFixed(2)} ${(hy - s * 0.8).toFixed(2)} ${(hx + s * 1.3).toFixed(2)} ${(hy + s * 0.15).toFixed(2)} ${hx.toFixed(2)} ${(hy + s * 0.8).toFixed(2)} Z`;
-    };
-
-    const pOut = svgHeart(cxNum, cyNum, outerSize * 0.46);
-    const pIn = svgHeart(cxNum, cyNum, innerSize * 0.44);
+    const pOut = getPlumpHeartSvgPath(cxNum, cyNum, 3.3 * modSize);
+    const pIn = getPlumpHeartSvgPath(cxNum, cyNum, 2.15 * modSize);
 
     if (isTransparent) {
       frameSvg = `<path d="${pOut} ${pIn}" fill="${color}" fill-rule="evenodd" />`;
@@ -1384,12 +1388,7 @@ export function renderQRToCanvas({
         ctx.closePath();
         ctx.fill();
       } else if (moduleShape === "heart") {
-        const s = modulePixelSize * 0.44;
-        ctx.beginPath();
-        ctx.moveTo(cx, cy + s * 0.8);
-        ctx.bezierCurveTo(cx - s * 1.3, cy + s * 0.15, cx - s * 1.25, cy - s * 0.8, cx, cy - s * 0.25);
-        ctx.bezierCurveTo(cx + s * 1.25, cy - s * 0.8, cx + s * 1.3, cy + s * 0.15, cx, cy + s * 0.8);
-        ctx.closePath();
+        drawPlumpHeartPath(ctx, cx, cy, modulePixelSize * 0.48);
         ctx.fill();
       } else if (moduleShape === "flower") {
         const rBase = modulePixelSize * 0.46;
@@ -1807,8 +1806,7 @@ export function generateQRSvgString({
       } else if (moduleShape === "heart") {
         const cxn = (c + quietZone + 0.5) * modSize;
         const cyn = (r + quietZone + 0.5) * modSize;
-        const s = modSize * 0.44;
-        const d = `M ${cxn.toFixed(2)} ${(cyn + s * 0.8).toFixed(2)} C ${(cxn - s * 1.3).toFixed(2)} ${(cyn + s * 0.15).toFixed(2)} ${(cxn - s * 1.25).toFixed(2)} ${(cyn - s * 0.8).toFixed(2)} ${cxn.toFixed(2)} ${(cyn - s * 0.25).toFixed(2)} C ${(cxn + s * 1.25).toFixed(2)} ${(cyn - s * 0.8).toFixed(2)} ${(cxn + s * 1.3).toFixed(2)} ${(cyn + s * 0.15).toFixed(2)} ${cxn.toFixed(2)} ${(cyn + s * 0.8).toFixed(2)} Z`;
+        const d = getPlumpHeartSvgPath(cxn, cyn, modSize * 0.48);
         modulesXml += `<path d="${d}" ${fillAttr} />`;
       } else if (moduleShape === "flower") {
         const cxn = (c + quietZone + 0.5) * modSize;
