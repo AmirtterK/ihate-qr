@@ -1,5 +1,12 @@
 import { QRCodeData } from "@/lib/qr-code";
-import { FinderShape, ModuleShape, ColorMode, LogoBacking } from "@/lib/qr-types";
+import {
+  FinderShape,
+  EyePupilShape,
+  ModuleShape,
+  ColorMode,
+  LogoBacking,
+  CodeContainer,
+} from "@/lib/qr-types";
 
 // Helper: Hex to RGB
 export function hexToRgb(hex: string): [number, number, number] {
@@ -111,6 +118,217 @@ export function getSvgRoundedRectPath(
   );
 }
 
+// Natural pupil pairing resolution
+export function resolvePupilShape(frameShape: FinderShape, pupilShape?: EyePupilShape): EyePupilShape {
+  if (pupilShape && pupilShape !== "auto") return pupilShape;
+  switch (frameShape) {
+    case "circle":
+    case "teardrop":
+    case "clover":
+    case "concentric":
+      return "circle";
+    case "leaf":
+      return "leaf";
+    case "chamfer":
+      return "chamfer";
+    case "rounded":
+      return "rounded";
+    case "diamond":
+      return "diamond";
+    case "hexagon":
+    case "gear":
+      return "hexagon";
+    case "shield":
+      return "shield";
+    case "star":
+      return "star";
+    case "viewfinder":
+      return "cross";
+    case "heart":
+      return "heart";
+    default:
+      return "square";
+  }
+}
+
+// Draw pupil shape onto Canvas (3x3 modules region)
+export function drawPupilOnCanvas(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  pupilSize: number,
+  resolvedPupil: EyePupilShape,
+  color: string,
+  corner: "tl" | "tr" | "bl",
+  modSize: number
+) {
+  ctx.fillStyle = color;
+  const half = pupilSize / 2;
+  const ox = cx - half;
+  const oy = cy - half;
+
+  if (resolvedPupil === "circle") {
+    ctx.beginPath();
+    ctx.arc(cx, cy, half, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (resolvedPupil === "rounded") {
+    const rad = pupilSize * 0.35;
+    drawRoundRectPath(ctx, ox, oy, pupilSize, pupilSize, rad, rad, rad, rad);
+    ctx.fill();
+  } else if (resolvedPupil === "diamond") {
+    ctx.beginPath();
+    ctx.moveTo(cx, oy);
+    ctx.lineTo(ox + pupilSize, cy);
+    ctx.lineTo(cx, oy + pupilSize);
+    ctx.lineTo(ox, cy);
+    ctx.closePath();
+    ctx.fill();
+  } else if (resolvedPupil === "star") {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const angle = (Math.PI * i) / 5 - Math.PI / 2;
+      const r = i % 2 === 0 ? half : half * 0.42;
+      const px = cx + Math.cos(angle) * r;
+      const py = cy + Math.sin(angle) * r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  } else if (resolvedPupil === "heart") {
+    const s = pupilSize * 0.46;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + s * 0.8);
+    ctx.bezierCurveTo(cx - s * 1.3, cy + s * 0.15, cx - s * 1.25, cy - s * 0.8, cx, cy - s * 0.25);
+    ctx.bezierCurveTo(cx + s * 1.25, cy - s * 0.8, cx + s * 1.3, cy + s * 0.15, cx, cy + s * 0.8);
+    ctx.closePath();
+    ctx.fill();
+  } else if (resolvedPupil === "cross") {
+    const arm = pupilSize * 0.3;
+    ctx.fillRect(ox + arm, oy, pupilSize - arm * 2, pupilSize);
+    ctx.fillRect(ox, oy + arm, pupilSize, pupilSize - arm * 2);
+  } else if (resolvedPupil === "leaf") {
+    const rPup = 0.9 * modSize;
+    let tlP = rPup, trP = 0, brP = rPup, blP = 0;
+    if (corner === "tr" || corner === "bl") {
+      tlP = 0; trP = rPup; brP = 0; blP = rPup;
+    }
+    drawRoundRectPath(ctx, ox, oy, pupilSize, pupilSize, tlP, trP, brP, blP);
+    ctx.fill();
+  } else if (resolvedPupil === "chamfer") {
+    const ch = 0.7 * modSize;
+    ctx.beginPath();
+    ctx.moveTo(ox + ch, oy);
+    ctx.lineTo(ox + pupilSize - ch, oy);
+    ctx.lineTo(ox + pupilSize, oy + ch);
+    ctx.lineTo(ox + pupilSize, oy + pupilSize - ch);
+    ctx.lineTo(ox + pupilSize - ch, oy + pupilSize);
+    ctx.lineTo(ox + ch, oy + pupilSize);
+    ctx.lineTo(ox, oy + pupilSize - ch);
+    ctx.lineTo(ox, oy + ch);
+    ctx.closePath();
+    ctx.fill();
+  } else if (resolvedPupil === "hexagon") {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i - Math.PI / 6;
+      const px = cx + Math.cos(angle) * half;
+      const py = cy + Math.sin(angle) * half;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  } else if (resolvedPupil === "shield") {
+    const r = pupilSize * 0.2;
+    ctx.beginPath();
+    ctx.moveTo(ox + r, oy);
+    ctx.lineTo(ox + pupilSize - r, oy);
+    ctx.arcTo(ox + pupilSize, oy, ox + pupilSize, oy + r, r);
+    ctx.lineTo(ox + pupilSize, oy + pupilSize * 0.55);
+    ctx.quadraticCurveTo(ox + pupilSize, oy + pupilSize * 0.85, ox + pupilSize / 2, oy + pupilSize);
+    ctx.quadraticCurveTo(ox, oy + pupilSize * 0.85, ox, oy + pupilSize * 0.55);
+    ctx.lineTo(ox, oy + r);
+    ctx.arcTo(ox, oy, ox + r, oy, r);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    // Square
+    ctx.fillRect(ox, oy, pupilSize, pupilSize);
+  }
+}
+
+// Generate SVG string for the pupil (3x3 region)
+export function getPupilSvg(
+  cx: number,
+  cy: number,
+  pupilSize: number,
+  resolvedPupil: EyePupilShape,
+  color: string,
+  corner: "tl" | "tr" | "bl",
+  modSize: number
+): string {
+  const half = pupilSize / 2;
+  const ox = cx - half;
+  const oy = cy - half;
+
+  if (resolvedPupil === "circle") {
+    return `<circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${half.toFixed(2)}" fill="${color}" />`;
+  } else if (resolvedPupil === "rounded") {
+    const rad = pupilSize * 0.35;
+    const p = getSvgRoundedRectPath(ox, oy, pupilSize, pupilSize, rad, rad, rad, rad);
+    return `<path d="${p}" fill="${color}" />`;
+  } else if (resolvedPupil === "diamond") {
+    return `<polygon points="${cx.toFixed(2)},${oy.toFixed(2)} ${(ox + pupilSize).toFixed(2)},${cy.toFixed(2)} ${cx.toFixed(2)},${(oy + pupilSize).toFixed(2)} ${ox.toFixed(2)},${cy.toFixed(2)}" fill="${color}" />`;
+  } else if (resolvedPupil === "star") {
+    let pts = "";
+    for (let i = 0; i < 10; i++) {
+      const angle = (Math.PI * i) / 5 - Math.PI / 2;
+      const r = i % 2 === 0 ? half : half * 0.42;
+      const px = cx + Math.cos(angle) * r;
+      const py = cy + Math.sin(angle) * r;
+      pts += `${px.toFixed(2)},${py.toFixed(2)} `;
+    }
+    return `<polygon points="${pts.trim()}" fill="${color}" />`;
+  } else if (resolvedPupil === "heart") {
+    const s = pupilSize * 0.46;
+    return `<path d="M ${cx.toFixed(2)} ${(cy + s * 0.8).toFixed(2)} C ${(cx - s * 1.3).toFixed(2)} ${(cy + s * 0.15).toFixed(2)} ${(cx - s * 1.25).toFixed(2)} ${(cy - s * 0.8).toFixed(2)} ${cx.toFixed(2)} ${(cy - s * 0.25).toFixed(2)} C ${(cx + s * 1.25).toFixed(2)} ${(cy - s * 0.8).toFixed(2)} ${(cx + s * 1.3).toFixed(2)} ${(cy + s * 0.15).toFixed(2)} ${cx.toFixed(2)} ${(cy + s * 0.8).toFixed(2)} Z" fill="${color}" />`;
+  } else if (resolvedPupil === "cross") {
+    const arm = pupilSize * 0.3;
+    return `
+      <rect x="${(ox + arm).toFixed(2)}" y="${oy.toFixed(2)}" width="${(pupilSize - arm * 2).toFixed(2)}" height="${pupilSize.toFixed(2)}" fill="${color}" />
+      <rect x="${ox.toFixed(2)}" y="${(oy + arm).toFixed(2)}" width="${pupilSize.toFixed(2)}" height="${(pupilSize - arm * 2).toFixed(2)}" fill="${color}" />
+    `;
+  } else if (resolvedPupil === "leaf") {
+    const rPup = 0.9 * modSize;
+    let tlP = rPup, trP = 0, brP = rPup, blP = 0;
+    if (corner === "tr" || corner === "bl") {
+      tlP = 0; trP = rPup; brP = 0; blP = rPup;
+    }
+    const p = getSvgRoundedRectPath(ox, oy, pupilSize, pupilSize, tlP, trP, brP, blP);
+    return `<path d="${p}" fill="${color}" />`;
+  } else if (resolvedPupil === "chamfer") {
+    const ch = 0.7 * modSize;
+    const pts = `${(ox + ch).toFixed(2)},${oy.toFixed(2)} ${(ox + pupilSize - ch).toFixed(2)},${oy.toFixed(2)} ${(ox + pupilSize).toFixed(2)},${(oy + ch).toFixed(2)} ${(ox + pupilSize).toFixed(2)},${(oy + pupilSize - ch).toFixed(2)} ${(ox + pupilSize - ch).toFixed(2)},${(oy + pupilSize).toFixed(2)} ${(ox + ch).toFixed(2)},${(oy + pupilSize).toFixed(2)} ${ox.toFixed(2)},${(oy + pupilSize - ch).toFixed(2)} ${ox.toFixed(2)},${(oy + ch).toFixed(2)}`;
+    return `<polygon points="${pts}" fill="${color}" />`;
+  } else if (resolvedPupil === "hexagon") {
+    let pts = "";
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i - Math.PI / 6;
+      const px = cx + Math.cos(angle) * half;
+      const py = cy + Math.sin(angle) * half;
+      pts += `${px.toFixed(2)},${py.toFixed(2)} `;
+    }
+    return `<polygon points="${pts.trim()}" fill="${color}" />`;
+  } else if (resolvedPupil === "shield") {
+    const r = pupilSize * 0.2;
+    const d = `M ${(ox + r).toFixed(2)} ${oy.toFixed(2)} L ${(ox + pupilSize - r).toFixed(2)} ${oy.toFixed(2)} A ${r.toFixed(2)} ${r.toFixed(2)} 0 0 1 ${(ox + pupilSize).toFixed(2)} ${(oy + r).toFixed(2)} L ${(ox + pupilSize).toFixed(2)} ${(oy + pupilSize * 0.55).toFixed(2)} Q ${(ox + pupilSize).toFixed(2)} ${(oy + pupilSize * 0.85).toFixed(2)} ${(ox + pupilSize / 2).toFixed(2)} ${(oy + pupilSize).toFixed(2)} Q ${ox.toFixed(2)} ${(oy + pupilSize * 0.85).toFixed(2)} ${ox.toFixed(2)} ${(oy + pupilSize * 0.55).toFixed(2)} L ${ox.toFixed(2)} ${(oy + r).toFixed(2)} A ${r.toFixed(2)} ${r.toFixed(2)} 0 0 1 ${(ox + r).toFixed(2)} ${oy.toFixed(2)} Z`;
+    return `<path d="${d}" fill="${color}" />`;
+  } else {
+    return `<rect x="${ox.toFixed(2)}" y="${oy.toFixed(2)}" width="${pupilSize.toFixed(2)}" height="${pupilSize.toFixed(2)}" fill="${color}" />`;
+  }
+}
+
 // Draw a custom artistic finder eye pattern (7x7 modules) onto Canvas
 export function drawFinderEye(
   ctx: CanvasRenderingContext2D,
@@ -120,17 +338,16 @@ export function drawFinderEye(
   shape: FinderShape,
   color: string,
   bgColor: string,
-  corner: "tl" | "tr" | "bl"
+  corner: "tl" | "tr" | "bl",
+  pupilShape: EyePupilShape = "auto"
 ) {
   const outerSize = 7 * modSize;
   const innerSize = 5 * modSize;
   const pupilSize = 3 * modSize;
   const innerOffset = modSize;
-  const pupilOffset = 2 * modSize;
 
   const cx = originX + outerSize / 2;
   const cy = originY + outerSize / 2;
-
   const isTransparent = bgColor.toLowerCase() === "transparent";
 
   ctx.save();
@@ -154,24 +371,15 @@ export function drawFinderEye(
       ctx.arc(cx, cy, innerSize / 2, 0, Math.PI * 2);
       ctx.fill();
     }
-
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(cx, cy, pupilSize / 2, 0, Math.PI * 2);
-    ctx.fill();
   } else if (shape === "leaf") {
     const rOut = 2.4 * modSize;
     const rIn = 1.6 * modSize;
-    const rPup = 0.9 * modSize;
-
     let tlO = rOut, trO = 0, brO = rOut, blO = 0;
     let tlI = rIn, trI = 0, brI = rIn, blI = 0;
-    let tlP = rPup, trP = 0, brP = rPup, blP = 0;
 
     if (corner === "tr" || corner === "bl") {
       tlO = 0; trO = rOut; brO = 0; blO = rOut;
       tlI = 0; trI = rIn; brI = 0; blI = rIn;
-      tlP = 0; trP = rPup; brP = 0; blP = rPup;
     }
 
     ctx.fillStyle = color;
@@ -189,14 +397,9 @@ export function drawFinderEye(
       drawRoundRectPath(ctx, originX + innerOffset, originY + innerOffset, innerSize, innerSize, tlI, trI, brI, blI);
       ctx.fill();
     }
-
-    ctx.fillStyle = color;
-    drawRoundRectPath(ctx, originX + pupilOffset, originY + pupilOffset, pupilSize, pupilSize, tlP, trP, brP, blP);
-    ctx.fill();
   } else if (shape === "chamfer") {
     const chOut = 1.7 * modSize;
     const chIn = 1.1 * modSize;
-    const chPup = 0.7 * modSize;
 
     const chamferPath = (ox: number, oy: number, sz: number, ch: number) => {
       ctx.beginPath();
@@ -226,11 +429,282 @@ export function drawFinderEye(
       chamferPath(originX + innerOffset, originY + innerOffset, innerSize, chIn);
       ctx.fill();
     }
+  } else if (shape === "rounded") {
+    const rOut = outerSize * 0.38;
+    const rIn = innerSize * 0.35;
 
     ctx.fillStyle = color;
-    chamferPath(originX + pupilOffset, originY + pupilOffset, pupilSize, chPup);
+    drawRoundRectPath(ctx, originX, originY, outerSize, outerSize, rOut, rOut, rOut, rOut);
+    ctx.fill();
+
+    if (isTransparent) {
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-out";
+      drawRoundRectPath(ctx, originX + innerOffset, originY + innerOffset, innerSize, innerSize, rIn, rIn, rIn, rIn);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = bgColor;
+      drawRoundRectPath(ctx, originX + innerOffset, originY + innerOffset, innerSize, innerSize, rIn, rIn, rIn, rIn);
+      ctx.fill();
+    }
+  } else if (shape === "diamond") {
+    const drawDiamond = (ox: number, oy: number, sz: number) => {
+      const half = sz / 2;
+      ctx.beginPath();
+      ctx.moveTo(ox + half, oy);
+      ctx.lineTo(ox + sz, oy + half);
+      ctx.lineTo(ox + half, oy + sz);
+      ctx.lineTo(ox, oy + half);
+      ctx.closePath();
+    };
+
+    ctx.fillStyle = color;
+    drawDiamond(originX, originY, outerSize);
+    ctx.fill();
+
+    if (isTransparent) {
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-out";
+      drawDiamond(originX + innerOffset, originY + innerOffset, innerSize);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = bgColor;
+      drawDiamond(originX + innerOffset, originY + innerOffset, innerSize);
+      ctx.fill();
+    }
+  } else if (shape === "hexagon") {
+    const drawHex = (ox: number, oy: number, sz: number) => {
+      const hh = sz / 2;
+      const inset = sz * 0.25;
+      ctx.beginPath();
+      ctx.moveTo(ox + inset, oy);
+      ctx.lineTo(ox + sz - inset, oy);
+      ctx.lineTo(ox + sz, oy + hh);
+      ctx.lineTo(ox + sz - inset, oy + sz);
+      ctx.lineTo(ox + inset, oy + sz);
+      ctx.lineTo(ox, oy + hh);
+      ctx.closePath();
+    };
+
+    ctx.fillStyle = color;
+    drawHex(originX, originY, outerSize);
+    ctx.fill();
+
+    if (isTransparent) {
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-out";
+      drawHex(originX + innerOffset, originY + innerOffset, innerSize);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = bgColor;
+      drawHex(originX + innerOffset, originY + innerOffset, innerSize);
+      ctx.fill();
+    }
+  } else if (shape === "shield") {
+    const drawShield = (ox: number, oy: number, sz: number) => {
+      const r = sz * 0.2;
+      ctx.beginPath();
+      ctx.moveTo(ox + r, oy);
+      ctx.lineTo(ox + sz - r, oy);
+      ctx.arcTo(ox + sz, oy, ox + sz, oy + r, r);
+      ctx.lineTo(ox + sz, oy + sz * 0.55);
+      ctx.quadraticCurveTo(ox + sz, oy + sz * 0.85, ox + sz / 2, oy + sz);
+      ctx.quadraticCurveTo(ox, oy + sz * 0.85, ox, oy + sz * 0.55);
+      ctx.lineTo(ox, oy + r);
+      ctx.arcTo(ox, oy, ox + r, oy, r);
+      ctx.closePath();
+    };
+
+    ctx.fillStyle = color;
+    drawShield(originX, originY, outerSize);
+    ctx.fill();
+
+    if (isTransparent) {
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-out";
+      drawShield(originX + innerOffset, originY + innerOffset, innerSize);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = bgColor;
+      drawShield(originX + innerOffset, originY + innerOffset, innerSize);
+      ctx.fill();
+    }
+  } else if (shape === "star") {
+    const drawStar = (centerX: number, centerY: number, outerR: number, innerR: number, points: number) => {
+      ctx.beginPath();
+      for (let i = 0; i < points * 2; i++) {
+        const angle = (Math.PI * i) / points - Math.PI / 2;
+        const r = i % 2 === 0 ? outerR : innerR;
+        const px = centerX + Math.cos(angle) * r;
+        const py = centerY + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    };
+
+    ctx.fillStyle = color;
+    drawStar(cx, cy, outerSize / 2, outerSize * 0.22, 5);
+    ctx.fill();
+
+    if (isTransparent) {
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.beginPath();
+      ctx.arc(cx, cy, innerSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = bgColor;
+      ctx.beginPath();
+      ctx.arc(cx, cy, innerSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (shape === "viewfinder") {
+    // 4 corner L-brackets framing the pupil like a camera HUD
+    const arm = 2.2 * modSize;
+    const thick = modSize;
+    ctx.fillStyle = color;
+    // Top-left
+    ctx.fillRect(originX, originY, arm, thick);
+    ctx.fillRect(originX, originY, thick, arm);
+    // Top-right
+    ctx.fillRect(originX + outerSize - arm, originY, arm, thick);
+    ctx.fillRect(originX + outerSize - thick, originY, thick, arm);
+    // Bottom-left
+    ctx.fillRect(originX, originY + outerSize - thick, arm, thick);
+    ctx.fillRect(originX, originY + outerSize - arm, thick, arm);
+    // Bottom-right
+    ctx.fillRect(originX + outerSize - arm, originY + outerSize - thick, arm, thick);
+    ctx.fillRect(originX + outerSize - thick, originY + outerSize - arm, thick, arm);
+  } else if (shape === "heart") {
+    const drawHeart = (hx: number, hy: number, s: number) => {
+      ctx.beginPath();
+      ctx.moveTo(hx, hy + s * 0.8);
+      ctx.bezierCurveTo(hx - s * 1.3, hy + s * 0.15, hx - s * 1.25, hy - s * 0.8, hx, hy - s * 0.25);
+      ctx.bezierCurveTo(hx + s * 1.25, hy - s * 0.8, hx + s * 1.3, hy + s * 0.15, hx, hy + s * 0.8);
+      ctx.closePath();
+    };
+
+    ctx.fillStyle = color;
+    drawHeart(cx, cy, outerSize * 0.46);
+    ctx.fill();
+
+    if (isTransparent) {
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-out";
+      drawHeart(cx, cy, innerSize * 0.44);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = bgColor;
+      drawHeart(cx, cy, innerSize * 0.44);
+      ctx.fill();
+    }
+  } else if (shape === "teardrop") {
+    // Map-pin / teardrop: 3 rounded corners, 1 corner pointing inward towards QR center
+    const rOut = 2.5 * modSize;
+    const rIn = 1.7 * modSize;
+    let tlO = rOut, trO = rOut, brO = rOut, blO = rOut;
+    let tlI = rIn, trI = rIn, brI = rIn, blI = rIn;
+
+    if (corner === "tl") {
+      brO = 0; brI = 0;
+    } else if (corner === "tr") {
+      blO = 0; blI = 0;
+    } else {
+      trO = 0; trI = 0;
+    }
+
+    ctx.fillStyle = color;
+    drawRoundRectPath(ctx, originX, originY, outerSize, outerSize, tlO, trO, brO, blO);
+    ctx.fill();
+
+    if (isTransparent) {
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-out";
+      drawRoundRectPath(ctx, originX + innerOffset, originY + innerOffset, innerSize, innerSize, tlI, trI, brI, blI);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = bgColor;
+      drawRoundRectPath(ctx, originX + innerOffset, originY + innerOffset, innerSize, innerSize, tlI, trI, brI, blI);
+      ctx.fill();
+    }
+  } else if (shape === "clover") {
+    // 4-leaf clover / flower petal lobes
+    const rLobe = 2.1 * modSize;
+    const dLobe = 1.35 * modSize;
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy - dLobe, rLobe, 0, Math.PI * 2);
+    ctx.arc(cx + dLobe, cy, rLobe, 0, Math.PI * 2);
+    ctx.arc(cx, cy + dLobe, rLobe, 0, Math.PI * 2);
+    ctx.arc(cx - dLobe, cy, rLobe, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (isTransparent) {
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.beginPath();
+      ctx.arc(cx, cy, innerSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = bgColor;
+      ctx.beginPath();
+      ctx.arc(cx, cy, innerSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (shape === "gear") {
+    // 8-tooth gear outer
+    const points = 16;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (let i = 0; i < points; i++) {
+      const angle = (Math.PI * 2 * i) / points;
+      const r = i % 2 === 0 ? outerSize * 0.5 : outerSize * 0.42;
+      const px = cx + Math.cos(angle) * r;
+      const py = cy + Math.sin(angle) * r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    if (isTransparent) {
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.beginPath();
+      ctx.arc(cx, cy, innerSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = bgColor;
+      ctx.beginPath();
+      ctx.arc(cx, cy, innerSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (shape === "concentric") {
+    // Concentric target radar rings
+    ctx.fillStyle = color;
+    // Outer ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerSize / 2, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 2.7 * modSize, 0, Math.PI * 2, true);
+    ctx.fill();
+    // Inner ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, 2.3 * modSize, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 1.8 * modSize, 0, Math.PI * 2, true);
     ctx.fill();
   } else {
+    // Standard square
     ctx.fillStyle = color;
     ctx.fillRect(originX, originY, outerSize, outerSize);
 
@@ -240,10 +714,11 @@ export function drawFinderEye(
       ctx.fillStyle = bgColor;
       ctx.fillRect(originX + innerOffset, originY + innerOffset, innerSize, innerSize);
     }
-
-    ctx.fillStyle = color;
-    ctx.fillRect(originX + pupilOffset, originY + pupilOffset, pupilSize, pupilSize);
   }
+
+  // Draw independent pupil
+  const resolved = resolvePupilShape(shape, pupilShape);
+  drawPupilOnCanvas(ctx, cx, cy, pupilSize, resolved, color, corner, modSize);
 
   ctx.restore();
 }
@@ -256,104 +731,397 @@ export function getFinderEyeSvg(
   shape: FinderShape,
   color: string,
   bgColor: string,
-  corner: "tl" | "tr" | "bl"
+  corner: "tl" | "tr" | "bl",
+  pupilShape: EyePupilShape = "auto"
 ): string {
   const outerSize = 7 * modSize;
   const innerSize = 5 * modSize;
   const pupilSize = 3 * modSize;
   const innerOffset = modSize;
-  const pupilOffset = 2 * modSize;
 
-  const cx = (originX + 3.5 * modSize).toFixed(2);
-  const cy = (originY + 3.5 * modSize).toFixed(2);
+  const cxNum = originX + 3.5 * modSize;
+  const cyNum = originY + 3.5 * modSize;
+  const cx = cxNum.toFixed(2);
+  const cy = cyNum.toFixed(2);
   const isTransparent = bgColor.toLowerCase() === "transparent";
+
+  const resolved = resolvePupilShape(shape, pupilShape);
+  const pupilSvg = getPupilSvg(cxNum, cyNum, pupilSize, resolved, color, corner, modSize);
+
+  let frameSvg = "";
 
   if (shape === "circle") {
     const rOut = (3.5 * modSize).toFixed(2);
     const rIn = (2.5 * modSize).toFixed(2);
-    const rPup = (1.5 * modSize).toFixed(2);
-
     if (isTransparent) {
-      const cNumX = originX + 3.5 * modSize;
-      const cNumY = originY + 3.5 * modSize;
-      const rONum = 3.5 * modSize;
-      const rINum = 2.5 * modSize;
-      return `
-        <path d="M ${cNumX} ${cNumY - rONum} A ${rONum} ${rONum} 0 1 0 ${cNumX} ${cNumY + rONum} A ${rONum} ${rONum} 0 1 0 ${cNumX} ${cNumY - rONum} Z M ${cNumX} ${cNumY - rINum} A ${rINum} ${rINum} 0 1 1 ${cNumX} ${cNumY + rINum} A ${rINum} ${rINum} 0 1 1 ${cNumX} ${cNumY - rINum} Z" fill="${color}" fill-rule="evenodd" />
-        <circle cx="${cx}" cy="${cy}" r="${rPup}" fill="${color}" />
+      frameSvg = `<path d="M ${cxNum} ${(cyNum - 3.5 * modSize).toFixed(2)} A ${rOut} ${rOut} 0 1 0 ${cxNum} ${(cyNum + 3.5 * modSize).toFixed(2)} A ${rOut} ${rOut} 0 1 0 ${cxNum} ${(cyNum - 3.5 * modSize).toFixed(2)} Z M ${cxNum} ${(cyNum - 2.5 * modSize).toFixed(2)} A ${rIn} ${rIn} 0 1 1 ${cxNum} ${(cyNum + 2.5 * modSize).toFixed(2)} A ${rIn} ${rIn} 0 1 1 ${cxNum} ${(cyNum - 2.5 * modSize).toFixed(2)} Z" fill="${color}" fill-rule="evenodd" />`;
+    } else {
+      frameSvg = `
+        <circle cx="${cx}" cy="${cy}" r="${rOut}" fill="${color}" />
+        <circle cx="${cx}" cy="${cy}" r="${rIn}" fill="${bgColor}" />
       `;
     }
-
-    return `
-      <circle cx="${cx}" cy="${cy}" r="${rOut}" fill="${color}" />
-      <circle cx="${cx}" cy="${cy}" r="${rIn}" fill="${bgColor}" />
-      <circle cx="${cx}" cy="${cy}" r="${rPup}" fill="${color}" />
-    `;
   } else if (shape === "leaf") {
     const rOut = 2.4 * modSize;
     const rIn = 1.6 * modSize;
-    const rPup = 0.9 * modSize;
-
     let tlO = rOut, trO = 0, brO = rOut, blO = 0;
     let tlI = rIn, trI = 0, brI = rIn, blI = 0;
-    let tlP = rPup, trP = 0, brP = rPup, blP = 0;
 
     if (corner === "tr" || corner === "bl") {
       tlO = 0; trO = rOut; brO = 0; blO = rOut;
       tlI = 0; trI = rIn; brI = 0; blI = rIn;
-      tlP = 0; trP = rPup; brP = 0; blP = rPup;
     }
 
     const pOut = getSvgRoundedRectPath(originX, originY, outerSize, outerSize, tlO, trO, brO, blO);
     const pIn = getSvgRoundedRectPath(originX + innerOffset, originY + innerOffset, innerSize, innerSize, tlI, trI, brI, blI);
-    const pPup = getSvgRoundedRectPath(originX + pupilOffset, originY + pupilOffset, pupilSize, pupilSize, tlP, trP, brP, blP);
 
     if (isTransparent) {
-      return `
-        <path d="${pOut} ${pIn}" fill="${color}" fill-rule="evenodd" />
-        <path d="${pPup}" fill="${color}" />
+      frameSvg = `<path d="${pOut} ${pIn}" fill="${color}" fill-rule="evenodd" />`;
+    } else {
+      frameSvg = `
+        <path d="${pOut}" fill="${color}" />
+        <path d="${pIn}" fill="${bgColor}" />
       `;
     }
-
-    return `
-      <path d="${pOut}" fill="${color}" />
-      <path d="${pIn}" fill="${bgColor}" />
-      <path d="${pPup}" fill="${color}" />
-    `;
   } else if (shape === "chamfer") {
-    const ox = originX, oy = originY, sz = 7 * modSize;
-    const outerChamfer = `M ${(ox + 1.6*modSize).toFixed(2)} ${oy.toFixed(2)} L ${(ox + sz - 1.6*modSize).toFixed(2)} ${oy.toFixed(2)} L ${(ox + sz).toFixed(2)} ${(oy + 1.6*modSize).toFixed(2)} L ${(ox + sz).toFixed(2)} ${(oy + sz - 1.6*modSize).toFixed(2)} L ${(ox + sz - 1.6*modSize).toFixed(2)} ${(oy + sz).toFixed(2)} L ${(ox + 1.6*modSize).toFixed(2)} ${(oy + sz).toFixed(2)} L ${ox.toFixed(2)} ${(oy + sz - 1.6*modSize).toFixed(2)} L ${ox.toFixed(2)} ${(oy + 1.6*modSize).toFixed(2)} Z`;
+    const ox = originX;
+    const oy = originY;
+    const sz = outerSize;
+    const ch = 1.7 * modSize;
+    const pOut = `M ${(ox + ch).toFixed(2)} ${oy.toFixed(2)} L ${(ox + sz - ch).toFixed(2)} ${oy.toFixed(2)} L ${(ox + sz).toFixed(2)} ${(oy + ch).toFixed(2)} L ${(ox + sz).toFixed(2)} ${(oy + sz - ch).toFixed(2)} L ${(ox + sz - ch).toFixed(2)} ${(oy + sz).toFixed(2)} L ${(ox + ch).toFixed(2)} ${(oy + sz).toFixed(2)} L ${ox.toFixed(2)} ${(oy + sz - ch).toFixed(2)} L ${ox.toFixed(2)} ${(oy + ch).toFixed(2)} Z`;
+
+    const iox = originX + innerOffset;
+    const ioy = originY + innerOffset;
+    const isz = innerSize;
+    const ich = 1.1 * modSize;
+    const pIn = `M ${(iox + ich).toFixed(2)} ${ioy.toFixed(2)} L ${(iox + isz - ich).toFixed(2)} ${ioy.toFixed(2)} L ${(iox + isz).toFixed(2)} ${(ioy + ich).toFixed(2)} L ${(iox + isz).toFixed(2)} ${(ioy + isz - ich).toFixed(2)} L ${(iox + isz - ich).toFixed(2)} ${(ioy + isz).toFixed(2)} L ${(iox + ich).toFixed(2)} ${(ioy + isz).toFixed(2)} L ${iox.toFixed(2)} ${(ioy + isz - ich).toFixed(2)} L ${iox.toFixed(2)} ${(ioy + ich).toFixed(2)} Z`;
 
     if (isTransparent) {
-      const inX = originX + innerOffset;
-      const inY = originY + innerOffset;
-      const inR = modSize * 0.5;
-      const innerRectPath = getSvgRoundedRectPath(inX, inY, innerSize, innerSize, inR, inR, inR, inR);
-      return `
-        <path d="${outerChamfer} ${innerRectPath}" fill="${color}" fill-rule="evenodd" />
-        <rect x="${(originX + pupilOffset).toFixed(2)}" y="${(originY + pupilOffset).toFixed(2)}" width="${pupilSize.toFixed(2)}" height="${pupilSize.toFixed(2)}" rx="${(modSize*0.4).toFixed(2)}" fill="${color}" />
+      frameSvg = `<path d="${pOut} ${pIn}" fill="${color}" fill-rule="evenodd" />`;
+    } else {
+      frameSvg = `
+        <path d="${pOut}" fill="${color}" />
+        <path d="${pIn}" fill="${bgColor}" />
       `;
     }
+  } else if (shape === "rounded") {
+    const pOut = getSvgRoundedRectPath(originX, originY, outerSize, outerSize, outerSize * 0.38, outerSize * 0.38, outerSize * 0.38, outerSize * 0.38);
+    const pIn = getSvgRoundedRectPath(originX + innerOffset, originY + innerOffset, innerSize, innerSize, innerSize * 0.35, innerSize * 0.35, innerSize * 0.35, innerSize * 0.35);
 
-    return `
-      <polygon points="${(ox + 1.6*modSize).toFixed(2)},${oy.toFixed(2)} ${(ox + sz - 1.6*modSize).toFixed(2)},${oy.toFixed(2)} ${(ox + sz).toFixed(2)},${(oy + 1.6*modSize).toFixed(2)} ${(ox + sz).toFixed(2)},${(oy + sz - 1.6*modSize).toFixed(2)} ${(ox + sz - 1.6*modSize).toFixed(2)},${(oy + sz).toFixed(2)} ${(ox + 1.6*modSize).toFixed(2)},${(oy + sz).toFixed(2)} ${ox.toFixed(2)},${(oy + sz - 1.6*modSize).toFixed(2)} ${ox.toFixed(2)},${(oy + 1.6*modSize).toFixed(2)}" fill="${color}" />
-      <rect x="${(originX + innerOffset).toFixed(2)}" y="${(originY + innerOffset).toFixed(2)}" width="${innerSize.toFixed(2)}" height="${innerSize.toFixed(2)}" rx="${(modSize*0.5).toFixed(2)}" fill="${bgColor}" />
-      <rect x="${(originX + pupilOffset).toFixed(2)}" y="${(originY + pupilOffset).toFixed(2)}" width="${pupilSize.toFixed(2)}" height="${pupilSize.toFixed(2)}" rx="${(modSize*0.4).toFixed(2)}" fill="${color}" />
+    if (isTransparent) {
+      frameSvg = `<path d="${pOut} ${pIn}" fill="${color}" fill-rule="evenodd" />`;
+    } else {
+      frameSvg = `
+        <path d="${pOut}" fill="${color}" />
+        <path d="${pIn}" fill="${bgColor}" />
+      `;
+    }
+  } else if (shape === "diamond") {
+    const svgDiamond = (ox: number, oy: number, sz: number) => {
+      const half = sz / 2;
+      return `M ${(ox + half).toFixed(2)} ${oy.toFixed(2)} L ${(ox + sz).toFixed(2)} ${(oy + half).toFixed(2)} L ${(ox + half).toFixed(2)} ${(oy + sz).toFixed(2)} L ${ox.toFixed(2)} ${(oy + half).toFixed(2)} Z`;
+    };
+
+    const pOut = svgDiamond(originX, originY, outerSize);
+    const pIn = svgDiamond(originX + innerOffset, originY + innerOffset, innerSize);
+
+    if (isTransparent) {
+      frameSvg = `<path d="${pOut} ${pIn}" fill="${color}" fill-rule="evenodd" />`;
+    } else {
+      frameSvg = `
+        <path d="${pOut}" fill="${color}" />
+        <path d="${pIn}" fill="${bgColor}" />
+      `;
+    }
+  } else if (shape === "hexagon") {
+    const svgHex = (ox: number, oy: number, sz: number) => {
+      const inset = sz * 0.25;
+      const hh = sz / 2;
+      return `M ${(ox + inset).toFixed(2)} ${oy.toFixed(2)} L ${(ox + sz - inset).toFixed(2)} ${oy.toFixed(2)} L ${(ox + sz).toFixed(2)} ${(oy + hh).toFixed(2)} L ${(ox + sz - inset).toFixed(2)} ${(oy + sz).toFixed(2)} L ${(ox + inset).toFixed(2)} ${(oy + sz).toFixed(2)} L ${ox.toFixed(2)} ${(oy + hh).toFixed(2)} Z`;
+    };
+
+    const pOut = svgHex(originX, originY, outerSize);
+    const pIn = svgHex(originX + innerOffset, originY + innerOffset, innerSize);
+
+    if (isTransparent) {
+      frameSvg = `<path d="${pOut} ${pIn}" fill="${color}" fill-rule="evenodd" />`;
+    } else {
+      frameSvg = `
+        <path d="${pOut}" fill="${color}" />
+        <path d="${pIn}" fill="${bgColor}" />
+      `;
+    }
+  } else if (shape === "shield") {
+    const svgShield = (ox: number, oy: number, sz: number) => {
+      const r = sz * 0.2;
+      return `M ${(ox + r).toFixed(2)} ${oy.toFixed(2)} L ${(ox + sz - r).toFixed(2)} ${oy.toFixed(2)} A ${r.toFixed(2)} ${r.toFixed(2)} 0 0 1 ${(ox + sz).toFixed(2)} ${(oy + r).toFixed(2)} L ${(ox + sz).toFixed(2)} ${(oy + sz * 0.55).toFixed(2)} Q ${(ox + sz).toFixed(2)} ${(oy + sz * 0.85).toFixed(2)} ${(ox + sz / 2).toFixed(2)} ${(oy + sz).toFixed(2)} Q ${ox.toFixed(2)} ${(oy + sz * 0.85).toFixed(2)} ${ox.toFixed(2)} ${(oy + sz * 0.55).toFixed(2)} L ${ox.toFixed(2)} ${(oy + r).toFixed(2)} A ${r.toFixed(2)} ${r.toFixed(2)} 0 0 1 ${(ox + r).toFixed(2)} ${oy.toFixed(2)} Z`;
+    };
+
+    const pOut = svgShield(originX, originY, outerSize);
+    const pIn = svgShield(originX + innerOffset, originY + innerOffset, innerSize);
+
+    if (isTransparent) {
+      frameSvg = `<path d="${pOut} ${pIn}" fill="${color}" fill-rule="evenodd" />`;
+    } else {
+      frameSvg = `
+        <path d="${pOut}" fill="${color}" />
+        <path d="${pIn}" fill="${bgColor}" />
+      `;
+    }
+  } else if (shape === "star") {
+    const svgStar = (centerX: number, centerY: number, outerR: number, innerR: number, points: number) => {
+      let d = "";
+      for (let i = 0; i < points * 2; i++) {
+        const angle = (Math.PI * i) / points - Math.PI / 2;
+        const r = i % 2 === 0 ? outerR : innerR;
+        const px = centerX + Math.cos(angle) * r;
+        const py = centerY + Math.sin(angle) * r;
+        d += (i === 0 ? "M " : "L ") + px.toFixed(2) + " " + py.toFixed(2) + " ";
+      }
+      return d + "Z";
+    };
+
+    const starPath = svgStar(cxNum, cyNum, outerSize / 2, outerSize * 0.22, 5);
+    const rIn = (2.5 * modSize).toFixed(2);
+    const rINum = 2.5 * modSize;
+
+    if (isTransparent) {
+      frameSvg = `<path d="${starPath} M ${cxNum} ${(cyNum - rINum).toFixed(2)} A ${rIn} ${rIn} 0 1 1 ${cxNum} ${(cyNum + rINum).toFixed(2)} A ${rIn} ${rIn} 0 1 1 ${cxNum} ${(cyNum - rINum).toFixed(2)} Z" fill="${color}" fill-rule="evenodd" />`;
+    } else {
+      frameSvg = `
+        <path d="${starPath}" fill="${color}" />
+        <circle cx="${cx}" cy="${cy}" r="${rIn}" fill="${bgColor}" />
+      `;
+    }
+  } else if (shape === "viewfinder") {
+    const arm = (2.2 * modSize).toFixed(2);
+    const thick = modSize.toFixed(2);
+    const ox = originX.toFixed(2);
+    const oy = originY.toFixed(2);
+    const rightArm = (originX + outerSize - 2.2 * modSize).toFixed(2);
+    const rightThick = (originX + outerSize - modSize).toFixed(2);
+    const bottomThick = (originY + outerSize - modSize).toFixed(2);
+    const bottomArm = (originY + outerSize - 2.2 * modSize).toFixed(2);
+
+    frameSvg = `
+      <rect x="${ox}" y="${oy}" width="${arm}" height="${thick}" fill="${color}" />
+      <rect x="${ox}" y="${oy}" width="${thick}" height="${arm}" fill="${color}" />
+      <rect x="${rightArm}" y="${oy}" width="${arm}" height="${thick}" fill="${color}" />
+      <rect x="${rightThick}" y="${oy}" width="${thick}" height="${arm}" fill="${color}" />
+      <rect x="${ox}" y="${bottomThick}" width="${arm}" height="${thick}" fill="${color}" />
+      <rect x="${ox}" y="${bottomArm}" width="${thick}" height="${arm}" fill="${color}" />
+      <rect x="${rightArm}" y="${bottomThick}" width="${arm}" height="${thick}" fill="${color}" />
+      <rect x="${rightThick}" y="${bottomArm}" width="${thick}" height="${arm}" fill="${color}" />
+    `;
+  } else if (shape === "heart") {
+    const svgHeart = (hx: number, hy: number, s: number) => {
+      return `M ${hx.toFixed(2)} ${(hy + s * 0.8).toFixed(2)} C ${(hx - s * 1.3).toFixed(2)} ${(hy + s * 0.15).toFixed(2)} ${(hx - s * 1.25).toFixed(2)} ${(hy - s * 0.8).toFixed(2)} ${hx.toFixed(2)} ${(hy - s * 0.25).toFixed(2)} C ${(hx + s * 1.25).toFixed(2)} ${(hy - s * 0.8).toFixed(2)} ${(hx + s * 1.3).toFixed(2)} ${(hy + s * 0.15).toFixed(2)} ${hx.toFixed(2)} ${(hy + s * 0.8).toFixed(2)} Z`;
+    };
+
+    const pOut = svgHeart(cxNum, cyNum, outerSize * 0.46);
+    const pIn = svgHeart(cxNum, cyNum, innerSize * 0.44);
+
+    if (isTransparent) {
+      frameSvg = `<path d="${pOut} ${pIn}" fill="${color}" fill-rule="evenodd" />`;
+    } else {
+      frameSvg = `
+        <path d="${pOut}" fill="${color}" />
+        <path d="${pIn}" fill="${bgColor}" />
+      `;
+    }
+  } else if (shape === "teardrop") {
+    const rOut = 2.5 * modSize;
+    const rIn = 1.7 * modSize;
+    let tlO = rOut, trO = rOut, brO = rOut, blO = rOut;
+    let tlI = rIn, trI = rIn, brI = rIn, blI = rIn;
+
+    if (corner === "tl") {
+      brO = 0; brI = 0;
+    } else if (corner === "tr") {
+      blO = 0; blI = 0;
+    } else {
+      trO = 0; trI = 0;
+    }
+
+    const pOut = getSvgRoundedRectPath(originX, originY, outerSize, outerSize, tlO, trO, brO, blO);
+    const pIn = getSvgRoundedRectPath(originX + innerOffset, originY + innerOffset, innerSize, innerSize, tlI, trI, brI, blI);
+
+    if (isTransparent) {
+      frameSvg = `<path d="${pOut} ${pIn}" fill="${color}" fill-rule="evenodd" />`;
+    } else {
+      frameSvg = `
+        <path d="${pOut}" fill="${color}" />
+        <path d="${pIn}" fill="${bgColor}" />
+      `;
+    }
+  } else if (shape === "clover") {
+    const rLobe = (2.1 * modSize).toFixed(2);
+    const dLobe = 1.35 * modSize;
+    const rIn = (innerSize / 2).toFixed(2);
+
+    frameSvg = `
+      <circle cx="${cx}" cy="${(cyNum - dLobe).toFixed(2)}" r="${rLobe}" fill="${color}" />
+      <circle cx="${(cxNum + dLobe).toFixed(2)}" cy="${cy}" r="${rLobe}" fill="${color}" />
+      <circle cx="${cx}" cy="${(cyNum + dLobe).toFixed(2)}" r="${rLobe}" fill="${color}" />
+      <circle cx="${(cxNum - dLobe).toFixed(2)}" cy="${cy}" r="${rLobe}" fill="${color}" />
+      <circle cx="${cx}" cy="${cy}" r="${rIn}" fill="${isTransparent ? 'none' : bgColor}" />
+    `;
+  } else if (shape === "gear") {
+    const points = 16;
+    let pts = "";
+    for (let i = 0; i < points; i++) {
+      const angle = (Math.PI * 2 * i) / points;
+      const r = i % 2 === 0 ? outerSize * 0.5 : outerSize * 0.42;
+      const px = cxNum + Math.cos(angle) * r;
+      const py = cyNum + Math.sin(angle) * r;
+      pts += `${px.toFixed(2)},${py.toFixed(2)} `;
+    }
+    const rIn = (innerSize / 2).toFixed(2);
+
+    frameSvg = `
+      <polygon points="${pts.trim()}" fill="${color}" />
+      <circle cx="${cx}" cy="${cy}" r="${rIn}" fill="${isTransparent ? 'none' : bgColor}" />
+    `;
+  } else if (shape === "concentric") {
+    const r1Out = (outerSize / 2).toFixed(2);
+    const r1In = (2.7 * modSize).toFixed(2);
+    const r2Out = (2.3 * modSize).toFixed(2);
+    const r2In = (1.8 * modSize).toFixed(2);
+
+    frameSvg = `
+      <path d="M ${cxNum} ${(cyNum - outerSize / 2).toFixed(2)} A ${r1Out} ${r1Out} 0 1 0 ${cxNum} ${(cyNum + outerSize / 2).toFixed(2)} A ${r1Out} ${r1Out} 0 1 0 ${cxNum} ${(cyNum - outerSize / 2).toFixed(2)} Z M ${cxNum} ${(cyNum - 2.7 * modSize).toFixed(2)} A ${r1In} ${r1In} 0 1 1 ${cxNum} ${(cyNum + 2.7 * modSize).toFixed(2)} A ${r1In} ${r1In} 0 1 1 ${cxNum} ${(cyNum - 2.7 * modSize).toFixed(2)} Z" fill="${color}" fill-rule="evenodd" />
+      <path d="M ${cxNum} ${(cyNum - 2.3 * modSize).toFixed(2)} A ${r2Out} ${r2Out} 0 1 0 ${cxNum} ${(cyNum + 2.3 * modSize).toFixed(2)} A ${r2Out} ${r2Out} 0 1 0 ${cxNum} ${(cyNum - 2.3 * modSize).toFixed(2)} Z M ${cxNum} ${(cyNum - 1.8 * modSize).toFixed(2)} A ${r2In} ${r2In} 0 1 1 ${cxNum} ${(cyNum + 1.8 * modSize).toFixed(2)} A ${r2In} ${r2In} 0 1 1 ${cxNum} ${(cyNum - 1.8 * modSize).toFixed(2)} Z" fill="${color}" fill-rule="evenodd" />
     `;
   } else {
+    // Square
     if (isTransparent) {
-      return `
-        <path d="M ${originX.toFixed(2)} ${originY.toFixed(2)} h ${outerSize.toFixed(2)} v ${outerSize.toFixed(2)} h -${outerSize.toFixed(2)} Z M ${(originX + innerOffset).toFixed(2)} ${(originY + innerOffset).toFixed(2)} v ${innerSize.toFixed(2)} h ${innerSize.toFixed(2)} v -${innerSize.toFixed(2)} Z" fill="${color}" fill-rule="evenodd" />
-        <rect x="${(originX + pupilOffset).toFixed(2)}" y="${(originY + pupilOffset).toFixed(2)}" width="${pupilSize.toFixed(2)}" height="${pupilSize.toFixed(2)}" fill="${color}" />
+      frameSvg = `<path d="M ${originX.toFixed(2)} ${originY.toFixed(2)} h ${outerSize.toFixed(2)} v ${outerSize.toFixed(2)} h -${outerSize.toFixed(2)} Z M ${(originX + innerOffset).toFixed(2)} ${(originY + innerOffset).toFixed(2)} v ${innerSize.toFixed(2)} h ${innerSize.toFixed(2)} v -${innerSize.toFixed(2)} Z" fill="${color}" fill-rule="evenodd" />`;
+    } else {
+      frameSvg = `
+        <rect x="${originX.toFixed(2)}" y="${originY.toFixed(2)}" width="${outerSize.toFixed(2)}" height="${outerSize.toFixed(2)}" fill="${color}" />
+        <rect x="${(originX + innerOffset).toFixed(2)}" y="${(originY + innerOffset).toFixed(2)}" width="${innerSize.toFixed(2)}" height="${innerSize.toFixed(2)}" fill="${bgColor}" />
       `;
     }
+  }
 
+  return `
+    ${frameSvg}
+    ${pupilSvg}
+  `;
+}
+
+// Draw container outline or card styling onto Canvas
+export function drawCodeContainerOnCanvas(
+  ctx: CanvasRenderingContext2D,
+  targetSize: number,
+  container: CodeContainer,
+  bgColor: string,
+  borderColor: string
+) {
+  if (container === "default") return;
+  const isTransparent = bgColor.toLowerCase() === "transparent";
+
+  if (container === "rounded") {
+    const pad = targetSize * 0.015;
+    const r = targetSize * 0.08;
+    ctx.save();
+    if (!isTransparent) {
+      ctx.fillStyle = bgColor;
+      drawRoundRectPath(ctx, pad, pad, targetSize - pad * 2, targetSize - pad * 2, r, r, r, r);
+      ctx.fill();
+    }
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = targetSize * 0.01;
+    drawRoundRectPath(ctx, pad, pad, targetSize - pad * 2, targetSize - pad * 2, r, r, r, r);
+    ctx.stroke();
+    ctx.restore();
+  } else if (container === "circle") {
+    const cx = targetSize / 2;
+    const cy = targetSize / 2;
+    const r = targetSize * 0.485;
+    ctx.save();
+    if (!isTransparent) {
+      ctx.fillStyle = bgColor;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = targetSize * 0.01;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  } else if (container === "stamp") {
+    const scallops = 24;
+    const step = targetSize / scallops;
+    const r = step * 0.28;
+    ctx.save();
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = targetSize * 0.008;
+    ctx.strokeRect(targetSize * 0.02, targetSize * 0.02, targetSize * 0.96, targetSize * 0.96);
+
+    ctx.fillStyle = isTransparent ? "#FFFFFF" : bgColor;
+    for (let i = 0; i <= scallops; i++) {
+      const p = i * step;
+      ctx.beginPath();
+      ctx.arc(p, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(p, targetSize, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0, p, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(targetSize, p, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+// Generate SVG string for the code container
+export function getCodeContainerSvg(
+  targetSize: number,
+  container: CodeContainer,
+  bgColor: string,
+  borderColor: string
+): string {
+  if (container === "default") return "";
+  const isTransparent = bgColor.toLowerCase() === "transparent";
+
+  if (container === "rounded") {
+    const pad = (targetSize * 0.015).toFixed(2);
+    const size = (targetSize - targetSize * 0.03).toFixed(2);
+    const r = (targetSize * 0.08).toFixed(2);
+    const strokeW = (targetSize * 0.01).toFixed(2);
+    return `<rect x="${pad}" y="${pad}" width="${size}" height="${size}" rx="${r}" fill="${isTransparent ? 'none' : bgColor}" stroke="${borderColor}" stroke-width="${strokeW}" />`;
+  } else if (container === "circle") {
+    const cx = (targetSize / 2).toFixed(2);
+    const cy = (targetSize / 2).toFixed(2);
+    const r = (targetSize * 0.485).toFixed(2);
+    const strokeW = (targetSize * 0.01).toFixed(2);
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${isTransparent ? 'none' : bgColor}" stroke="${borderColor}" stroke-width="${strokeW}" />`;
+  } else if (container === "stamp") {
+    const scallops = 24;
+    const step = targetSize / scallops;
+    const r = (step * 0.28).toFixed(2);
+    const strokeW = (targetSize * 0.008).toFixed(2);
+    let holes = "";
+    for (let i = 0; i <= scallops; i++) {
+      const p = (i * step).toFixed(2);
+      holes += `<circle cx="${p}" cy="0" r="${r}" fill="${isTransparent ? '#FFFFFF' : bgColor}" />`;
+      holes += `<circle cx="${p}" cy="${targetSize}" r="${r}" fill="${isTransparent ? '#FFFFFF' : bgColor}" />`;
+      holes += `<circle cx="0" cy="${p}" r="${r}" fill="${isTransparent ? '#FFFFFF' : bgColor}" />`;
+      holes += `<circle cx="${targetSize}" cy="${p}" r="${r}" fill="${isTransparent ? '#FFFFFF' : bgColor}" />`;
+    }
     return `
-      <rect x="${originX.toFixed(2)}" y="${originY.toFixed(2)}" width="${outerSize.toFixed(2)}" height="${outerSize.toFixed(2)}" fill="${color}" />
-      <rect x="${(originX + innerOffset).toFixed(2)}" y="${(originY + innerOffset).toFixed(2)}" width="${innerSize.toFixed(2)}" height="${innerSize.toFixed(2)}" fill="${bgColor}" />
-      <rect x="${(originX + pupilOffset).toFixed(2)}" y="${(originY + pupilOffset).toFixed(2)}" width="${pupilSize.toFixed(2)}" height="${pupilSize.toFixed(2)}" fill="${color}" />
+      <rect x="${(targetSize * 0.02).toFixed(2)}" y="${(targetSize * 0.02).toFixed(2)}" width="${(targetSize * 0.96).toFixed(2)}" height="${(targetSize * 0.96).toFixed(2)}" fill="none" stroke="${borderColor}" stroke-width="${strokeW}" />
+      ${holes}
     `;
   }
+  return "";
 }
 
 export interface RenderCanvasOptions {
@@ -365,8 +1133,10 @@ export interface RenderCanvasOptions {
   bestContrastColor: string;
   seed: string;
   finderShape: FinderShape;
+  eyePupilShape?: EyePupilShape;
   moduleShape: ModuleShape;
   colorMode: ColorMode;
+  codeContainer?: CodeContainer;
   logoSrc: string | null;
   logoImage: HTMLImageElement | null;
   logoSizePercent: number;
@@ -383,8 +1153,10 @@ export function renderQRToCanvas({
   bestContrastColor,
   seed,
   finderShape,
+  eyePupilShape = "auto",
   moduleShape,
   colorMode,
+  codeContainer = "default",
   logoSrc,
   logoImage,
   logoSizePercent,
@@ -406,6 +1178,11 @@ export function renderQRToCanvas({
   if (bgColor.toLowerCase() !== "transparent") {
     ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, targetSize, targetSize);
+  }
+
+  // Draw Code Container if set
+  if (codeContainer !== "default") {
+    drawCodeContainerOnCanvas(ctx, targetSize, codeContainer, bgColor, bestContrastColor);
   }
 
   const rng = createRng(seed);
@@ -496,6 +1273,8 @@ export function renderQRToCanvas({
 
       const x = (c + quietZone) * modulePixelSize;
       const y = (r + quietZone) * modulePixelSize;
+      const cx = x + modulePixelSize / 2;
+      const cy = y + modulePixelSize / 2;
 
       if (fillGradient) {
         ctx.fillStyle = fillGradient;
@@ -512,20 +1291,14 @@ export function renderQRToCanvas({
         ctx.fill();
       } else if (moduleShape === "dots") {
         ctx.beginPath();
-        ctx.arc(
-          x + modulePixelSize / 2,
-          y + modulePixelSize / 2,
-          modulePixelSize * 0.44,
-          0,
-          Math.PI * 2
-        );
+        ctx.arc(cx, cy, modulePixelSize * 0.44, 0, Math.PI * 2);
         ctx.fill();
       } else if (moduleShape === "diamond") {
         ctx.beginPath();
-        ctx.moveTo(x + modulePixelSize / 2, y);
-        ctx.lineTo(x + modulePixelSize, y + modulePixelSize / 2);
-        ctx.lineTo(x + modulePixelSize / 2, y + modulePixelSize);
-        ctx.lineTo(x, y + modulePixelSize / 2);
+        ctx.moveTo(cx, y);
+        ctx.lineTo(x + modulePixelSize, cy);
+        ctx.lineTo(cx, y + modulePixelSize);
+        ctx.lineTo(x, cy);
         ctx.closePath();
         ctx.fill();
       } else if (moduleShape === "fluid") {
@@ -556,11 +1329,165 @@ export function renderQRToCanvas({
 
         drawRoundRectPath(ctx, x, y, modulePixelSize + 0.15, modulePixelSize + 0.15, tl, tr, br, bl);
         ctx.fill();
+      } else if (moduleShape === "classy") {
+        const rad = modulePixelSize * 0.5;
+        drawRoundRectPath(ctx, x, y, modulePixelSize + 0.1, modulePixelSize + 0.1, 0, 0, rad, 0);
+        ctx.fill();
+      } else if (moduleShape === "classyRounded") {
+        const smallR = modulePixelSize * 0.15;
+        const bigR = modulePixelSize * 0.5;
+        drawRoundRectPath(ctx, x, y, modulePixelSize + 0.1, modulePixelSize + 0.1, smallR, smallR, bigR, smallR);
+        ctx.fill();
+      } else if (moduleShape === "star") {
+        const outerR = modulePixelSize * 0.5;
+        const innerR = modulePixelSize * 0.2;
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const angle = (Math.PI * i) / 4 - Math.PI / 2;
+          const r = i % 2 === 0 ? outerR : innerR;
+          const px = cx + Math.cos(angle) * r;
+          const py = cy + Math.sin(angle) * r;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+      } else if (moduleShape === "hexagon") {
+        const hr = modulePixelSize * 0.48;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i - Math.PI / 6;
+          const px = cx + Math.cos(angle) * hr;
+          const py = cy + Math.sin(angle) * hr;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+      } else if (moduleShape === "cross") {
+        const arm = modulePixelSize * 0.3;
+        const full = modulePixelSize;
+        ctx.fillRect(x + arm, y, full - arm * 2, full);
+        ctx.fillRect(x, y + arm, full, full - arm * 2);
+      } else if (moduleShape === "triangle") {
+        const pointsUp = (r + c) % 2 === 0;
+        ctx.beginPath();
+        if (pointsUp) {
+          ctx.moveTo(cx, y);
+          ctx.lineTo(x + modulePixelSize, y + modulePixelSize);
+          ctx.lineTo(x, y + modulePixelSize);
+        } else {
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + modulePixelSize, y);
+          ctx.lineTo(cx, y + modulePixelSize);
+        }
+        ctx.closePath();
+        ctx.fill();
+      } else if (moduleShape === "heart") {
+        const s = modulePixelSize * 0.44;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy + s * 0.8);
+        ctx.bezierCurveTo(cx - s * 1.3, cy + s * 0.15, cx - s * 1.25, cy - s * 0.8, cx, cy - s * 0.25);
+        ctx.bezierCurveTo(cx + s * 1.25, cy - s * 0.8, cx + s * 1.3, cy + s * 0.15, cx, cy + s * 0.8);
+        ctx.closePath();
+        ctx.fill();
+      } else if (moduleShape === "flower") {
+        const rBase = modulePixelSize * 0.46;
+        ctx.beginPath();
+        for (let i = 0; i <= 32; i++) {
+          const theta = (Math.PI * 2 * i) / 32;
+          const rad = rBase * (0.7 + 0.3 * Math.cos(4 * theta));
+          const px = cx + Math.cos(theta) * rad;
+          const py = cy + Math.sin(theta) * rad;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+      } else if (moduleShape === "circuit") {
+        const hasTop = isDataCell(r - 1, c);
+        const hasBottom = isDataCell(r + 1, c);
+        const hasLeft = isDataCell(r, c - 1);
+        const hasRight = isDataCell(r, c + 1);
+
+        const padR = modulePixelSize * 0.26;
+        const traceW = modulePixelSize * 0.26;
+        const halfTrace = traceW / 2;
+
+        // Center pad
+        ctx.beginPath();
+        ctx.arc(cx, cy, padR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Neighbor traces
+        if (hasTop) ctx.fillRect(cx - halfTrace, y, traceW, modulePixelSize / 2);
+        if (hasBottom) ctx.fillRect(cx - halfTrace, cy, traceW, modulePixelSize / 2);
+        if (hasLeft) ctx.fillRect(x, cy - halfTrace, modulePixelSize / 2, traceW);
+        if (hasRight) ctx.fillRect(cx, cy - halfTrace, modulePixelSize / 2, traceW);
+
+        // If isolated, draw a distinct node
+        if (!hasTop && !hasBottom && !hasLeft && !hasRight) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, modulePixelSize * 0.38, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (moduleShape === "donut") {
+        const rOut = modulePixelSize * 0.44;
+        const rIn = modulePixelSize * 0.22;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rOut, 0, Math.PI * 2);
+        ctx.arc(cx, cy, rIn, 0, Math.PI * 2, true);
+        ctx.fill();
+      } else if (moduleShape === "rhombus") {
+        const slant = modulePixelSize * 0.22;
+        ctx.beginPath();
+        ctx.moveTo(x + slant, y);
+        ctx.lineTo(x + modulePixelSize, y);
+        ctx.lineTo(x + modulePixelSize - slant, y + modulePixelSize);
+        ctx.lineTo(x, y + modulePixelSize);
+        ctx.closePath();
+        ctx.fill();
+      } else if (moduleShape === "mosaic") {
+        const gap = modulePixelSize * 0.1;
+        const sub = (modulePixelSize - gap) / 2;
+        const rad = sub * 0.3;
+        const mode = (r + c) % 3;
+
+        if (mode === 0) {
+          // 4 distinct micro-tiles
+          drawRoundRectPath(ctx, x, y, sub, sub, rad, rad, rad, rad);
+          ctx.fill();
+          drawRoundRectPath(ctx, x + sub + gap, y, sub, sub, rad, rad, rad, rad);
+          ctx.fill();
+          drawRoundRectPath(ctx, x, y + sub + gap, sub, sub, rad, rad, rad, rad);
+          ctx.fill();
+          drawRoundRectPath(ctx, x + sub + gap, y + sub + gap, sub, sub, rad, rad, rad, rad);
+          ctx.fill();
+        } else if (mode === 1) {
+          // Diagonal micro-tiles + center diamond
+          drawRoundRectPath(ctx, x, y, sub, sub, rad, rad, rad, rad);
+          ctx.fill();
+          drawRoundRectPath(ctx, x + sub + gap, y + sub + gap, sub, sub, rad, rad, rad, rad);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(cx, cy - sub * 0.5);
+          ctx.lineTo(cx + sub * 0.5, cy);
+          ctx.lineTo(cx, cy + sub * 0.5);
+          ctx.lineTo(cx - sub * 0.5, cy);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          // Asymmetric quadrant
+          drawRoundRectPath(ctx, x, y, sub * 1.5, sub * 1.5, rad, rad, rad, rad);
+          ctx.fill();
+          drawRoundRectPath(ctx, x + sub + gap, y + sub + gap, sub, sub, rad, rad, rad, rad);
+          ctx.fill();
+        }
       }
     }
   }
 
-  // Draw 3 finder eyes
+  // Draw 3 finder eyes with custom frame and pupil
   drawFinderEye(
     ctx,
     quietZone * modulePixelSize,
@@ -569,7 +1496,8 @@ export function renderQRToCanvas({
     finderShape,
     bestContrastColor,
     bgColor,
-    "tl"
+    "tl",
+    eyePupilShape
   );
   drawFinderEye(
     ctx,
@@ -579,7 +1507,8 @@ export function renderQRToCanvas({
     finderShape,
     bestContrastColor,
     bgColor,
-    "tr"
+    "tr",
+    eyePupilShape
   );
   drawFinderEye(
     ctx,
@@ -589,7 +1518,8 @@ export function renderQRToCanvas({
     finderShape,
     bestContrastColor,
     bgColor,
-    "bl"
+    "bl",
+    eyePupilShape
   );
 
   // Draw Logo if present
@@ -637,8 +1567,10 @@ export interface GenerateSvgOptions {
   bestContrastColor: string;
   seed: string;
   finderShape: FinderShape;
+  eyePupilShape?: EyePupilShape;
   moduleShape: ModuleShape;
   colorMode: ColorMode;
+  codeContainer?: CodeContainer;
   logoSrc: string | null;
   logoSizePercent: number;
   logoBacking: LogoBacking;
@@ -652,8 +1584,10 @@ export function generateQRSvgString({
   bestContrastColor,
   seed,
   finderShape,
+  eyePupilShape = "auto",
   moduleShape,
   colorMode,
+  codeContainer = "default",
   logoSrc,
   logoSizePercent,
   logoBacking,
@@ -737,6 +1671,8 @@ export function generateQRSvgString({
 
       const x = ((c + quietZone) * modSize).toFixed(2);
       const y = ((r + quietZone) * modSize).toFixed(2);
+      const cx = ((c + quietZone + 0.5) * modSize).toFixed(2);
+      const cy = ((r + quietZone + 0.5) * modSize).toFixed(2);
       const w = (modSize + 0.1).toFixed(2);
 
       let fillAttr = "";
@@ -753,8 +1689,6 @@ export function generateQRSvgString({
         const rx = (modSize * 0.35).toFixed(2);
         modulesXml += `<rect x="${x}" y="${y}" width="${w}" height="${w}" rx="${rx}" ${fillAttr} />`;
       } else if (moduleShape === "dots") {
-        const cx = ((c + quietZone + 0.5) * modSize).toFixed(2);
-        const cy = ((r + quietZone + 0.5) * modSize).toFixed(2);
         const rad = (modSize * 0.44).toFixed(2);
         modulesXml += `<circle cx="${cx}" cy="${cy}" r="${rad}" ${fillAttr} />`;
       } else if (moduleShape === "diamond") {
@@ -780,10 +1714,7 @@ export function generateQRSvgString({
           (r + quietZone) * modSize,
           modSize + 0.05,
           modSize + 0.05,
-          tl,
-          tr,
-          br,
-          bl
+          tl, tr, br, bl
         );
         modulesXml += `<path d="${p}" ${fillAttr} />`;
       } else if (moduleShape === "liquid") {
@@ -803,22 +1734,174 @@ export function generateQRSvgString({
           (r + quietZone) * modSize,
           modSize + 0.06,
           modSize + 0.06,
-          tl,
-          tr,
-          br,
-          bl
+          tl, tr, br, bl
         );
         modulesXml += `<path d="${p}" ${fillAttr} />`;
+      } else if (moduleShape === "classy") {
+        const rad = modSize * 0.5;
+        const p = getSvgRoundedRectPath(
+          (c + quietZone) * modSize,
+          (r + quietZone) * modSize,
+          modSize + 0.05,
+          modSize + 0.05,
+          0, 0, rad, 0
+        );
+        modulesXml += `<path d="${p}" ${fillAttr} />`;
+      } else if (moduleShape === "classyRounded") {
+        const smallR = modSize * 0.15;
+        const bigR = modSize * 0.5;
+        const p = getSvgRoundedRectPath(
+          (c + quietZone) * modSize,
+          (r + quietZone) * modSize,
+          modSize + 0.05,
+          modSize + 0.05,
+          smallR, smallR, bigR, smallR
+        );
+        modulesXml += `<path d="${p}" ${fillAttr} />`;
+      } else if (moduleShape === "star") {
+        const scx = (c + quietZone + 0.5) * modSize;
+        const scy = (r + quietZone + 0.5) * modSize;
+        const outerR = modSize * 0.5;
+        const innerR = modSize * 0.2;
+        let d = "";
+        for (let i = 0; i < 8; i++) {
+          const angle = (Math.PI * i) / 4 - Math.PI / 2;
+          const sr = i % 2 === 0 ? outerR : innerR;
+          const px = scx + Math.cos(angle) * sr;
+          const py = scy + Math.sin(angle) * sr;
+          d += (i === 0 ? "M " : "L ") + px.toFixed(2) + " " + py.toFixed(2) + " ";
+        }
+        d += "Z";
+        modulesXml += `<path d="${d}" ${fillAttr} />`;
+      } else if (moduleShape === "hexagon") {
+        const hcx = (c + quietZone + 0.5) * modSize;
+        const hcy = (r + quietZone + 0.5) * modSize;
+        const hr = modSize * 0.48;
+        let d = "";
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i - Math.PI / 6;
+          const px = hcx + Math.cos(angle) * hr;
+          const py = hcy + Math.sin(angle) * hr;
+          d += (i === 0 ? "M " : "L ") + px.toFixed(2) + " " + py.toFixed(2) + " ";
+        }
+        d += "Z";
+        modulesXml += `<path d="${d}" ${fillAttr} />`;
+      } else if (moduleShape === "cross") {
+        const xn = (c + quietZone) * modSize;
+        const yn = (r + quietZone) * modSize;
+        const arm = modSize * 0.3;
+        const full = modSize;
+        modulesXml += `<rect x="${(xn + arm).toFixed(2)}" y="${yn.toFixed(2)}" width="${(full - arm * 2).toFixed(2)}" height="${full.toFixed(2)}" ${fillAttr} />`;
+        modulesXml += `<rect x="${xn.toFixed(2)}" y="${(yn + arm).toFixed(2)}" width="${full.toFixed(2)}" height="${(full - arm * 2).toFixed(2)}" ${fillAttr} />`;
+      } else if (moduleShape === "triangle") {
+        const xn = (c + quietZone) * modSize;
+        const yn = (r + quietZone) * modSize;
+        const pointsUp = (r + c) % 2 === 0;
+        let points: string;
+        if (pointsUp) {
+          points = `${(xn + modSize / 2).toFixed(2)},${yn.toFixed(2)} ${(xn + modSize).toFixed(2)},${(yn + modSize).toFixed(2)} ${xn.toFixed(2)},${(yn + modSize).toFixed(2)}`;
+        } else {
+          points = `${xn.toFixed(2)},${yn.toFixed(2)} ${(xn + modSize).toFixed(2)},${yn.toFixed(2)} ${(xn + modSize / 2).toFixed(2)},${(yn + modSize).toFixed(2)}`;
+        }
+        modulesXml += `<polygon points="${points}" ${fillAttr} />`;
+      } else if (moduleShape === "heart") {
+        const cxn = (c + quietZone + 0.5) * modSize;
+        const cyn = (r + quietZone + 0.5) * modSize;
+        const s = modSize * 0.44;
+        const d = `M ${cxn.toFixed(2)} ${(cyn + s * 0.8).toFixed(2)} C ${(cxn - s * 1.3).toFixed(2)} ${(cyn + s * 0.15).toFixed(2)} ${(cxn - s * 1.25).toFixed(2)} ${(cyn - s * 0.8).toFixed(2)} ${cxn.toFixed(2)} ${(cyn - s * 0.25).toFixed(2)} C ${(cxn + s * 1.25).toFixed(2)} ${(cyn - s * 0.8).toFixed(2)} ${(cxn + s * 1.3).toFixed(2)} ${(cyn + s * 0.15).toFixed(2)} ${cxn.toFixed(2)} ${(cyn + s * 0.8).toFixed(2)} Z`;
+        modulesXml += `<path d="${d}" ${fillAttr} />`;
+      } else if (moduleShape === "flower") {
+        const cxn = (c + quietZone + 0.5) * modSize;
+        const cyn = (r + quietZone + 0.5) * modSize;
+        const rBase = modSize * 0.46;
+        let d = "";
+        for (let i = 0; i <= 32; i++) {
+          const theta = (Math.PI * 2 * i) / 32;
+          const rad = rBase * (0.7 + 0.3 * Math.cos(4 * theta));
+          const px = cxn + Math.cos(theta) * rad;
+          const py = cyn + Math.sin(theta) * rad;
+          d += (i === 0 ? "M " : "L ") + px.toFixed(2) + " " + py.toFixed(2) + " ";
+        }
+        d += "Z";
+        modulesXml += `<path d="${d}" ${fillAttr} />`;
+      } else if (moduleShape === "circuit") {
+        const cxn = (c + quietZone + 0.5) * modSize;
+        const cyn = (r + quietZone + 0.5) * modSize;
+        const xn = (c + quietZone) * modSize;
+        const yn = (r + quietZone) * modSize;
+        const padR = (modSize * 0.26).toFixed(2);
+        const traceW = (modSize * 0.26).toFixed(2);
+        const halfTrace = modSize * 0.13;
+        const halfCell = (modSize / 2).toFixed(2);
+
+        const hasTop = isDataCell(r - 1, c);
+        const hasBottom = isDataCell(r + 1, c);
+        const hasLeft = isDataCell(r, c - 1);
+        const hasRight = isDataCell(r, c + 1);
+
+        let circuitGroup = `<circle cx="${cxn.toFixed(2)}" cy="${cyn.toFixed(2)}" r="${padR}" ${fillAttr} />`;
+        if (hasTop) circuitGroup += `<rect x="${(cxn - halfTrace).toFixed(2)}" y="${yn.toFixed(2)}" width="${traceW}" height="${halfCell}" ${fillAttr} />`;
+        if (hasBottom) circuitGroup += `<rect x="${(cxn - halfTrace).toFixed(2)}" y="${cyn.toFixed(2)}" width="${traceW}" height="${halfCell}" ${fillAttr} />`;
+        if (hasLeft) circuitGroup += `<rect x="${xn.toFixed(2)}" y="${(cyn - halfTrace).toFixed(2)}" width="${halfCell}" height="${traceW}" ${fillAttr} />`;
+        if (hasRight) circuitGroup += `<rect x="${cxn.toFixed(2)}" y="${(cyn - halfTrace).toFixed(2)}" width="${halfCell}" height="${traceW}" ${fillAttr} />`;
+
+        if (!hasTop && !hasBottom && !hasLeft && !hasRight) {
+          circuitGroup = `<circle cx="${cxn.toFixed(2)}" cy="${cyn.toFixed(2)}" r="${(modSize * 0.38).toFixed(2)}" ${fillAttr} />`;
+        }
+        modulesXml += circuitGroup;
+      } else if (moduleShape === "donut") {
+        const cxn = (c + quietZone + 0.5) * modSize;
+        const cyn = (r + quietZone + 0.5) * modSize;
+        const rOut = modSize * 0.44;
+        const rIn = modSize * 0.22;
+        const d = `M ${(cxn - rOut).toFixed(2)} ${cyn.toFixed(2)} A ${rOut.toFixed(2)} ${rOut.toFixed(2)} 0 1 0 ${(cxn + rOut).toFixed(2)} ${cyn.toFixed(2)} A ${rOut.toFixed(2)} ${rOut.toFixed(2)} 0 1 0 ${(cxn - rOut).toFixed(2)} ${cyn.toFixed(2)} Z M ${(cxn - rIn).toFixed(2)} ${cyn.toFixed(2)} A ${rIn.toFixed(2)} ${rIn.toFixed(2)} 0 1 1 ${(cxn + rIn).toFixed(2)} ${cyn.toFixed(2)} A ${rIn.toFixed(2)} ${rIn.toFixed(2)} 0 1 1 ${(cxn - rIn).toFixed(2)} ${cyn.toFixed(2)} Z`;
+        modulesXml += `<path d="${d}" fill-rule="evenodd" ${fillAttr} />`;
+      } else if (moduleShape === "rhombus") {
+        const xn = (c + quietZone) * modSize;
+        const yn = (r + quietZone) * modSize;
+        const slant = modSize * 0.22;
+        const pts = `${(xn + slant).toFixed(2)},${yn.toFixed(2)} ${(xn + modSize).toFixed(2)},${yn.toFixed(2)} ${(xn + modSize - slant).toFixed(2)},${(yn + modSize).toFixed(2)} ${xn.toFixed(2)},${(yn + modSize).toFixed(2)}`;
+        modulesXml += `<polygon points="${pts}" ${fillAttr} />`;
+      } else if (moduleShape === "mosaic") {
+        const xn = (c + quietZone) * modSize;
+        const yn = (r + quietZone) * modSize;
+        const gap = modSize * 0.1;
+        const sub = (modSize - gap) / 2;
+        const rx = (sub * 0.3).toFixed(2);
+        const subStr = sub.toFixed(2);
+        const xn2 = (xn + sub + gap).toFixed(2);
+        const yn2 = (yn + sub + gap).toFixed(2);
+        const mode = (r + c) % 3;
+
+        if (mode === 0) {
+          modulesXml += `<rect x="${xn.toFixed(2)}" y="${yn.toFixed(2)}" width="${subStr}" height="${subStr}" rx="${rx}" ${fillAttr} />`;
+          modulesXml += `<rect x="${xn2}" y="${yn.toFixed(2)}" width="${subStr}" height="${subStr}" rx="${rx}" ${fillAttr} />`;
+          modulesXml += `<rect x="${xn.toFixed(2)}" y="${yn2}" width="${subStr}" height="${subStr}" rx="${rx}" ${fillAttr} />`;
+          modulesXml += `<rect x="${xn2}" y="${yn2}" width="${subStr}" height="${subStr}" rx="${rx}" ${fillAttr} />`;
+        } else if (mode === 1) {
+          modulesXml += `<rect x="${xn.toFixed(2)}" y="${yn.toFixed(2)}" width="${subStr}" height="${subStr}" rx="${rx}" ${fillAttr} />`;
+          modulesXml += `<rect x="${xn2}" y="${yn2}" width="${subStr}" height="${subStr}" rx="${rx}" ${fillAttr} />`;
+          const cxn = (xn + modSize / 2).toFixed(2);
+          const cyn = (yn + modSize / 2).toFixed(2);
+          const dR = (sub * 0.5).toFixed(2);
+          modulesXml += `<polygon points="${cxn},${(yn + modSize/2 - sub*0.5).toFixed(2)} ${(xn + modSize/2 + sub*0.5).toFixed(2)},${cyn} ${cxn},${(yn + modSize/2 + sub*0.5).toFixed(2)} ${(xn + modSize/2 - sub*0.5).toFixed(2)},${cyn}" ${fillAttr} />`;
+        } else {
+          modulesXml += `<rect x="${xn.toFixed(2)}" y="${yn.toFixed(2)}" width="${(sub * 1.5).toFixed(2)}" height="${(sub * 1.5).toFixed(2)}" rx="${rx}" ${fillAttr} />`;
+          modulesXml += `<rect x="${xn2}" y="${yn2}" width="${subStr}" height="${subStr}" rx="${rx}" ${fillAttr} />`;
+        }
       }
     }
   }
 
   // Finder eyes SVG
   const findersXml = `
-    ${getFinderEyeSvg(quietZone * modSize, quietZone * modSize, modSize, finderShape, bestContrastColor, bgColor, "tl")}
-    ${getFinderEyeSvg((moduleCount - 7 + quietZone) * modSize, quietZone * modSize, modSize, finderShape, bestContrastColor, bgColor, "tr")}
-    ${getFinderEyeSvg(quietZone * modSize, (moduleCount - 7 + quietZone) * modSize, modSize, finderShape, bestContrastColor, bgColor, "bl")}
+    ${getFinderEyeSvg(quietZone * modSize, quietZone * modSize, modSize, finderShape, bestContrastColor, bgColor, "tl", eyePupilShape)}
+    ${getFinderEyeSvg((moduleCount - 7 + quietZone) * modSize, quietZone * modSize, modSize, finderShape, bestContrastColor, bgColor, "tr", eyePupilShape)}
+    ${getFinderEyeSvg(quietZone * modSize, (moduleCount - 7 + quietZone) * modSize, modSize, finderShape, bestContrastColor, bgColor, "bl", eyePupilShape)}
   `;
+
+  // Container XML
+  const containerXml = getCodeContainerSvg(svgSize, codeContainer, bgColor, bestContrastColor);
 
   // Logo XML
   let logoXml = "";
@@ -854,6 +1937,7 @@ export function generateQRSvgString({
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgSize} ${svgSize}" width="${svgSize}" height="${svgSize}">
 ${bgRectXml}  ${defsXml}
+  ${containerXml}
   ${modulesXml}
   ${findersXml}
   ${logoXml}
