@@ -4,11 +4,9 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { generateQRMatrix, QRCodeData } from "@/lib/qr-code";
 import {
   FinderShape,
-  EyePupilShape,
   ModuleShape,
   ColorMode,
   LogoBacking,
-  CodeContainer,
   Preset,
   SafetyReport,
 } from "@/lib/qr-types";
@@ -31,10 +29,8 @@ export function QRStudio() {
   const [bgColor, setBgColor] = useState("#FFFFFF");
   const [seed, setSeed] = useState("48291");
   const [finderShape, setFinderShape] = useState<FinderShape>("square");
-  const [eyePupilShape, setEyePupilShape] = useState<EyePupilShape>("auto");
   const [moduleShape, setModuleShape] = useState<ModuleShape>("square");
   const [colorMode, setColorMode] = useState<ColorMode>("scatter");
-  const [codeContainer, setCodeContainer] = useState<CodeContainer>("default");
 
   // Logo state
   const [logoImage, setLogoImage] = useState<HTMLImageElement | null>(null);
@@ -65,88 +61,81 @@ export function QRStudio() {
     return `https://${trimmed}`;
   }, [url]);
 
-  // Determine the color with the highest contrast against the background (for finder eyes)
+  // Determine the color from the palette that gives the highest contrast against the background
   const bestContrastColor = useMemo(() => {
-    const effectiveBg = bgColor.toLowerCase() === "transparent" ? "#FFFFFF" : bgColor;
-    if (palette.length === 0) return effectiveBg === "#FFFFFF" ? "#000000" : "#FFFFFF";
+    if (palette.length === 0) return "#000000";
+    const effectiveBg = bgColor === "transparent" ? "#FFFFFF" : bgColor;
     let best = palette[0];
-    let maxRatio = -1;
-    for (const color of palette) {
-      const ratio = getContrastRatio(color, effectiveBg);
+    let maxRatio = getContrastRatio(palette[0], effectiveBg);
+    for (let i = 1; i < palette.length; i++) {
+      const ratio = getContrastRatio(palette[i], effectiveBg);
       if (ratio > maxRatio) {
         maxRatio = ratio;
-        best = color;
+        best = palette[i];
       }
     }
     return best;
   }, [palette, bgColor]);
 
-  // Scan-Safety diagnostics
+  // Scanner Safety Evaluation
   const safetyReport: SafetyReport = useMemo(() => {
-    const warnings: { type: "contrast" | "logo"; message: string; critical: boolean }[] = [];
-    const effectiveBg = bgColor.toLowerCase() === "transparent" ? "#FFFFFF" : bgColor;
+    const warnings: SafetyReport["warnings"] = [];
+    const effectiveBg = bgColor === "transparent" ? "#FFFFFF" : bgColor;
 
-    // Contrast check: each palette color against background
+    // Contrast check for each palette color
     palette.forEach((color, idx) => {
       const ratio = getContrastRatio(color, effectiveBg);
-      if (ratio < 3.0) {
+      if (ratio < 2.5) {
         warnings.push({
           type: "contrast",
           critical: true,
-          message: `Color ${idx + 1} (${color}) has low contrast (${ratio.toFixed(1)}:1) against ${bgColor === "transparent" ? "light surfaces" : "background"}. Scanners may struggle.`,
+          message: `Color #${idx + 1} (${color}) has very low contrast (${ratio.toFixed(1)}:1) against background.`,
         });
-      } else if (ratio < 4.5) {
+      } else if (ratio < 4.0) {
         warnings.push({
           type: "contrast",
           critical: false,
-          message: `Color ${idx + 1} (${color}) has moderate contrast (${ratio.toFixed(1)}:1). Darker color recommended.`,
+          message: `Color #${idx + 1} (${color}) has marginal contrast (${ratio.toFixed(1)}:1). May scan slowly in dim light.`,
         });
       }
     });
 
-    // Check best contrast color for eyes (find patterns)
+    // Best contrast check (finders)
     const finderRatio = getContrastRatio(bestContrastColor, effectiveBg);
-    if (finderRatio < 4.5) {
+    if (finderRatio < 4.0) {
       warnings.push({
         type: "contrast",
         critical: true,
-        message: `Corner finder eye contrast (${finderRatio.toFixed(1)}:1) is too low. Positioning requires strong contrast.`,
+        message: `Finder patterns have low contrast (${finderRatio.toFixed(1)}:1). Scanners will fail to acquire code.`,
       });
     }
 
-    // Logo size warning
+    // Logo size check
     if (logoSrc) {
       if (logoSizePercent > 22) {
         warnings.push({
           type: "logo",
           critical: true,
-          message: `Logo covers ${logoSizePercent}% of code (H error correction max is ~30%). Center data modules may be unrecoverable.`,
-        });
-      } else if (logoSizePercent > 18) {
-        warnings.push({
-          type: "logo",
-          critical: false,
-          message: `Logo is moderately large (${logoSizePercent}%). Test scan recommended.`,
+          message: `Logo covers ${logoSizePercent}% of width. Near Error Correction H safety limit (25%). Test carefully.`,
         });
       }
     }
 
-    return {
-      isSafe: warnings.filter((w) => w.critical).length === 0,
-      warnings,
-    };
+    const isSafe = warnings.filter((w) => w.critical).length === 0;
+    return { isSafe, warnings };
   }, [palette, bgColor, bestContrastColor, logoSrc, logoSizePercent]);
 
-  // Generate QR matrix whenever URL changes
+  // Generate QR Matrix
   const qrData: QRCodeData = useMemo(() => {
     try {
       return generateQRMatrix(normalizedUrl, "H");
-    } catch {
+    } catch (e) {
+      console.error("QR Generation error:", e);
       return generateQRMatrix("https://amirhattab.vercel.app", "H");
     }
   }, [normalizedUrl]);
 
-  // Main rendering callback
+  // Render QR Code onto Canvas
   const renderCanvas = useCallback(
     (targetCanvas: HTMLCanvasElement, targetSize = 1024) => {
       renderQRToCanvas({
@@ -158,10 +147,8 @@ export function QRStudio() {
         bestContrastColor,
         seed,
         finderShape,
-        eyePupilShape,
         moduleShape,
         colorMode,
-        codeContainer,
         logoSrc,
         logoImage,
         logoSizePercent,
@@ -176,10 +163,8 @@ export function QRStudio() {
       bestContrastColor,
       seed,
       finderShape,
-      eyePupilShape,
       moduleShape,
       colorMode,
-      codeContainer,
       logoSrc,
       logoImage,
       logoSizePercent,
@@ -240,11 +225,9 @@ export function QRStudio() {
   const applyPreset = (preset: Preset) => {
     setPalette([...preset.colors]);
     setBgColor(preset.bg);
-    setFinderShape(preset.finderShape || "square");
-    setEyePupilShape(preset.eyePupilShape || "auto");
-    setModuleShape(preset.moduleShape || "square");
-    setColorMode(preset.colorMode || "scatter");
-    setCodeContainer(preset.codeContainer || "default");
+    if (preset.finderShape) setFinderShape(preset.finderShape);
+    if (preset.moduleShape) setModuleShape(preset.moduleShape);
+    if (preset.colorMode) setColorMode(preset.colorMode);
     setSeed(Math.floor(10000 + Math.random() * 900000).toString());
   };
 
@@ -277,10 +260,8 @@ export function QRStudio() {
       bestContrastColor,
       seed,
       finderShape,
-      eyePupilShape,
       moduleShape,
       colorMode,
-      codeContainer,
       logoSrc,
       logoSizePercent,
       logoBacking,
@@ -328,11 +309,11 @@ export function QRStudio() {
         onShuffle={shuffleColors}
       />
 
-      {/* Responsive Layout */}
+      {/* Responsive Layout: On mobile -> Link (1) -> QR (2) -> Style (3) -> Logo/Dropzone (4) | On desktop -> 3 columns */}
       <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-6 md:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 lg:grid-rows-[auto_1fr] gap-6 items-start">
           
-          {/* WIDGET 1: Content to Encode (Link widget) */}
+          {/* WIDGET 1: Content to Encode (Link widget) - Mobile: 1st, Desktop: Col 1-4 Row 1 */}
           <div className="order-1 lg:order-none lg:col-start-1 lg:col-span-4 lg:row-start-1">
             <LinkWidget
               url={url}
@@ -340,7 +321,7 @@ export function QRStudio() {
             />
           </div>
 
-          {/* WIDGET 2: QR Code Preview */}
+          {/* WIDGET 2: QR Code Preview - Mobile: 2nd, Desktop: Col 5-8 Rows 1-2 (sticky) */}
           <div className="order-2 lg:order-none lg:col-start-5 lg:col-span-4 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-20 space-y-5">
             <PreviewWidget
               canvasRef={canvasRef}
@@ -353,23 +334,19 @@ export function QRStudio() {
             />
           </div>
 
-          {/* WIDGET 3: Style & Colors widget */}
+          {/* WIDGET 3: Style & Colors widget - Mobile: 3rd, Desktop: Col 9-12 Rows 1-2 */}
           <div className="order-3 lg:order-none lg:col-start-9 lg:col-span-4 lg:row-start-1 lg:row-span-2 space-y-6">
             <StyleWidget
               palette={palette}
               bgColor={bgColor}
               bestContrastColor={bestContrastColor}
               finderShape={finderShape}
-              eyePupilShape={eyePupilShape}
               moduleShape={moduleShape}
               colorMode={colorMode}
-              codeContainer={codeContainer}
               onApplyPreset={applyPreset}
               onFinderShapeChange={setFinderShape}
-              onEyePupilShapeChange={setEyePupilShape}
               onModuleShapeChange={setModuleShape}
               onColorModeChange={setColorMode}
-              onCodeContainerChange={setCodeContainer}
               onBgColorChange={setBgColor}
               onAddColor={addColor}
               onUpdateColor={updateColor}
@@ -378,7 +355,7 @@ export function QRStudio() {
             />
           </div>
 
-          {/* WIDGET 4: Center Logo */}
+          {/* WIDGET 4: Center Logo (Image drop) - Mobile: 4th, Desktop: Col 1-4 Row 2 */}
           <div className="order-4 lg:order-none lg:col-start-1 lg:col-span-4 lg:row-start-2">
             <LogoWidget
               logoSrc={logoSrc}

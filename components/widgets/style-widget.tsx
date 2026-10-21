@@ -2,31 +2,19 @@
 
 import React from "react";
 import { Palette, Plus, Shuffle, Trash2 } from "lucide-react";
-import {
-  FinderShape,
-  EyePupilShape,
-  ModuleShape,
-  ColorMode,
-  CodeContainer,
-  Preset,
-  PRESETS,
-} from "@/lib/qr-types";
+import { FinderShape, ModuleShape, ColorMode, Preset, PRESETS } from "@/lib/qr-types";
 
 interface StyleWidgetProps {
   palette: string[];
   bgColor: string;
   bestContrastColor: string;
   finderShape: FinderShape;
-  eyePupilShape: EyePupilShape;
   moduleShape: ModuleShape;
   colorMode: ColorMode;
-  codeContainer: CodeContainer;
   onApplyPreset: (preset: Preset) => void;
   onFinderShapeChange: (shape: FinderShape) => void;
-  onEyePupilShapeChange: (shape: EyePupilShape) => void;
   onModuleShapeChange: (shape: ModuleShape) => void;
   onColorModeChange: (mode: ColorMode) => void;
-  onCodeContainerChange: (container: CodeContainer) => void;
   onBgColorChange: (color: string) => void;
   onAddColor: () => void;
   onUpdateColor: (index: number, color: string) => void;
@@ -39,16 +27,12 @@ export function StyleWidget({
   bgColor,
   bestContrastColor,
   finderShape,
-  eyePupilShape,
   moduleShape,
   colorMode,
-  codeContainer,
   onApplyPreset,
   onFinderShapeChange,
-  onEyePupilShapeChange,
   onModuleShapeChange,
   onColorModeChange,
-  onCodeContainerChange,
   onBgColorChange,
   onAddColor,
   onUpdateColor,
@@ -72,7 +56,7 @@ export function StyleWidget({
         </button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Customize palette, eye frames, pupil markers, modules, and container silhouettes.
+        Customize palette, eye shapes, and artistic flow.
       </p>
 
       {/* Presets */}
@@ -102,52 +86,18 @@ export function StyleWidget({
 
       {/* Artistic Style Selectors */}
       <div className="pt-2 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {/* Eye Frame Style */}
+        {/* Eye Style */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground block">Eye Frame (Outer)</label>
+          <label className="text-xs font-medium text-muted-foreground block">Eye Shape</label>
           <select
             value={finderShape}
             onChange={(e) => onFinderShapeChange(e.target.value as FinderShape)}
             className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
           >
-            <option value="square">Squares (Standard)</option>
+            <option value="square">Squares</option>
             <option value="circle">Circles</option>
-            <option value="rounded">Rounded Squircle</option>
-            <option value="leaf">Leaf (Organic)</option>
-            <option value="chamfer">Chamfered Octagon</option>
-            <option value="diamond">Diamond (45° Angle)</option>
-            <option value="hexagon">Hexagon (Tech)</option>
-            <option value="shield">Heraldic Shield</option>
-            <option value="star">Star Frame</option>
-            <option value="viewfinder">Viewfinder / Camera HUD</option>
-            <option value="heart">Heart Frame</option>
-            <option value="teardrop">Teardrop / Map Pin</option>
-            <option value="clover">Clover / Flower</option>
-            <option value="gear">Industrial Cog / Gear</option>
-            <option value="concentric">Concentric / Target Radar</option>
-          </select>
-        </div>
-
-        {/* Eye Pupil Style */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground block">Eye Pupil (Inner Ball)</label>
-          <select
-            value={eyePupilShape}
-            onChange={(e) => onEyePupilShapeChange(e.target.value as EyePupilShape)}
-            className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            <option value="auto">Auto (Matches Frame)</option>
-            <option value="square">Square</option>
-            <option value="circle">Circle / Dot</option>
-            <option value="rounded">Rounded</option>
-            <option value="diamond">Diamond</option>
-            <option value="star">Star</option>
-            <option value="heart">Heart</option>
-            <option value="cross">Cross / Plus</option>
-            <option value="shield">Shield</option>
             <option value="leaf">Leaf</option>
             <option value="chamfer">Chamfer</option>
-            <option value="hexagon">Hexagon</option>
           </select>
         </div>
 
@@ -163,35 +113,8 @@ export function StyleWidget({
             <option value="rounded">Rounded</option>
             <option value="dots">Dots</option>
             <option value="diamond">Diamonds</option>
-            <option value="fluid">Fluid (Connected)</option>
-            <option value="liquid">Liquid (Full Flow)</option>
-            <option value="classy">Classy (Rain Pattern)</option>
-            <option value="classyRounded">Classy Rounded</option>
-            <option value="star">Stars (4-Pointed)</option>
-            <option value="hexagon">Hexagons (Honeycomb)</option>
-            <option value="cross">Cross / Crosshairs</option>
-            <option value="triangle">Triangles (Mosaic)</option>
-            <option value="heart">Hearts (Romantic)</option>
-            <option value="flower">Flower Petals (Floral)</option>
-            <option value="circuit">PCB Circuit Tracks</option>
-            <option value="donut">Donut Rings</option>
-            <option value="rhombus">Slanted Rhombus</option>
-            <option value="mosaic">Mosaic Micro-Tiles</option>
-          </select>
-        </div>
-
-        {/* Code Container Silhouette */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground block">Container Silhouette</label>
-          <select
-            value={codeContainer}
-            onChange={(e) => onCodeContainerChange(e.target.value as CodeContainer)}
-            className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            <option value="default">None (Edge-to-Edge)</option>
-            <option value="rounded">Rounded Card Border</option>
-            <option value="circle">Circular Medallion</option>
-            <option value="stamp">Postage Stamp Perforations</option>
+            <option value="fluid">Fluid</option>
+            <option value="liquid">Liquid</option>
           </select>
         </div>
 
